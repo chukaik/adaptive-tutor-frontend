@@ -7,6 +7,7 @@ import {
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../../services/firebase';
 import { Colors } from '../../constants/colors';
+import { webScrollStyle, scrollContentStyle } from '../../constants/webStyles';
 
 export default function ForgotPasswordScreen({ navigation }) {
   const [email,   setEmail]   = useState('');
@@ -35,10 +36,17 @@ export default function ForgotPasswordScreen({ navigation }) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[
+        styles.container,
+        Platform.OS === 'web' && { minHeight: '100vh' },
+      ]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        style={webScrollStyle}
+        contentContainerStyle={[styles.scroll, scrollContentStyle]}
+        keyboardShouldPersistTaps="handled"
+      >
 
         <View style={styles.header}>
           <Text style={styles.appName}>AdaptiveTutor</Text>

@@ -12,9 +12,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.adeleke.adaptivetutor"
     },
     "android": {
+      "package": "com.adeleke.adaptivetutor",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -27,6 +29,18 @@
     },
     "plugins": [
       "expo-web-browser"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "7831b24d-7e9f-4996-ac4b-95c34f750e42"
+      }
+    },
+    "owner": "chukkyik",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/7831b24d-7e9f-4996-ac4b-95c34f750e42"
+    }
   }
 }

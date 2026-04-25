@@ -8,8 +8,7 @@ import { auth, db } from '../../services/firebase';
 import { completeOnboarding } from '../../services/api';
 import { useTheme } from '../../constants/ThemeContext';
 import { Colors } from '../../constants/colors';
-import { COURSE_ID } from '../../constants/courseIds';
-
+import { COURSE_ID_COS201, COURSE_ID_CSC301 } from '../../constants/courseIds';
 // Static Data
 
 const FACULTIES = [
@@ -25,10 +24,16 @@ const YEARS = ['1', '2', '3', '4', '5'];
 
 const AVAILABLE_COURSES = [
   {
-    id:          COURSE_ID,
+    id:          COURSE_ID_COS201,
     code:        'COS201',
     title:       'Computer Programming I',
     description: '8 topics covering programming fundamentals, Java data types, control structures, OOP, packages, strings, collections, searching, sorting, recursion and exception handling.',
+  },
+  {
+    id:          COURSE_ID_CSC301,
+    code:        'CSC301',
+    title:       'Data Structures',
+    description: '6 topics covering primitive types, arrays, strings, stacks, queues, trees, pointers, linked structures, searching and sorting algorithms using C++.',
   },
 ];
 
@@ -291,6 +296,7 @@ export default function OnboardingScreen({ onComplete, userId }) {
         course_of_study:     courseOfStudy.trim(),
         year_of_study:       parseInt(yearOfStudy),
         onboarding_complete: true,
+        enrolled_courses:    selectedCourses,
         updated_at:          serverTimestamp(),
       });
 

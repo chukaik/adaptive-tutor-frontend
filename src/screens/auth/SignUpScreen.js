@@ -17,6 +17,7 @@ import * as Google from 'expo-auth-session/providers/google';
 import { auth, db } from '../../services/firebase';
 import { useTheme } from '../../constants/ThemeContext';
 import { Colors } from '../../constants/colors';
+import { webScrollStyle, scrollContentStyle } from '../../constants/webStyles';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -172,7 +173,8 @@ export default function SignUpScreen({ navigation }) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        style={webScrollStyle}
+        contentContainerStyle={[styles.scroll, scrollContentStyle]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >

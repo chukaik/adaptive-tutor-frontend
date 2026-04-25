@@ -44,11 +44,35 @@ export const requestHint = (questionText, topic, difficulty) =>
 export const generatePersonalizedQuiz = (userId, topicId, difficulty, weakSubtopics) =>
   post('/quiz/generate-personalized', { user_id: userId, topic_id: topicId, difficulty, weak_subtopics: weakSubtopics });
 
-export const sendChatMessage = (userId, message, topicContext = null, history = []) =>
-  post('/chat/message', { user_id: userId, message, topic_context: topicContext, history });
+export const sendChatMessage = async (userId, message, topicContext, history, sessionId = null) => {
+  const response = await post('/chat/message', {
+    user_id:       userId,
+    message:       message,
+    topic_context: topicContext || null,
+    history:       history || [],
+    session_id:    sessionId || null,
+  });
+  return response;
+  // response now includes: { response, message_id, session_id }
+};
 
-export const getChatHistory = (userId) =>
-  get(`/chat/history/${userId}`);
+export const getChatSessions = async (userId) => {
+  const response = await get(`/chat/sessions/${userId}`);
+  return response;
+};
+
+export const createChatSession = async (userId) => {
+  const response = await post(`/chat/sessions/${userId}`, {});
+  return response;
+};
+
+export const getChatHistory = async (userId, sessionId = null) => {
+  const url = sessionId
+    ? `/chat/history/${userId}?session_id=${sessionId}`
+    : `/chat/history/${userId}`;
+  const response = await get(url);
+  return response;
+};
 
 export const getLearningState = (userId, courseId) =>
   get(`/progress/learning-state/${userId}/${courseId}`);
@@ -58,3 +82,14 @@ export const getFullProgress = (userId) =>
 
 export const updateStreak = (userId) =>
   post('/progress/streak/update', { user_id: userId });
+
+export const warmupBackend = async () => {
+  try {
+    await fetch(`${BASE_URL}/health`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(10000),
+    });
+  } catch (e) {
+    // Silently ignore — warmup is best effort
+  }
+};

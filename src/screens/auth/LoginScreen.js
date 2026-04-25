@@ -10,12 +10,13 @@ import {
   GoogleAuthProvider,
   signInWithCredential,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { auth, db } from '../../services/firebase';
 import { useTheme } from '../../constants/ThemeContext';
 import { Colors } from '../../constants/colors';
+import { webScrollStyle, scrollContentStyle } from '../../constants/webStyles';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -119,17 +120,35 @@ export default function LoginScreen({ navigation }) {
 
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
-    } catch (error) {
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-        setErrors({ email: 'No account found with this email address.' });
-      } else if (error.code === 'auth/wrong-password') {
-        setErrors({ password: 'Incorrect password. Please try again.' });
-      } else if (error.code === 'auth/invalid-email') {
-        setErrors({ email: 'Please enter a valid email address.' });
-      } else if (error.code === 'auth/too-many-requests') {
+    } catch (e) {
+      if (
+        e.code === 'auth/invalid-credential' ||
+        e.code === 'auth/wrong-password' ||
+        e.code === 'auth/user-not-found'
+      ) {
+        try {
+          const usersRef = collection(db, 'users');
+          const q = query(
+            usersRef,
+            where('email', '==', email.trim().toLowerCase()),
+            limit(1)
+          );
+          const snap = await getDocs(q);
+
+          if (snap.empty) {
+            setErrors({ general: 'Email account does not exist. Please check your email or sign up.' });
+          } else {
+            setErrors({ general: 'Incorrect password. Please try again.' });
+          }
+        } catch (innerError) {
+          setErrors({ general: 'Sign in failed. Please check your details and try again.' });
+        }
+      } else if (e.code === 'auth/invalid-email') {
+        setErrors({ general: 'Please enter a valid email address.' });
+      } else if (e.code === 'auth/too-many-requests') {
         setErrors({ general: 'Too many failed attempts. Please try again later.' });
       } else {
-        setErrors({ general: 'Login failed. Please check your details and try again.' });
+        setErrors({ general: 'Sign in failed. Please try again.' });
       }
     } finally {
       setLoading(false);
@@ -144,7 +163,8 @@ export default function LoginScreen({ navigation }) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        style={webScrollStyle}
+        contentContainerStyle={[styles.scroll, scrollContentStyle]}
         keyboardShouldPersistTaps="handled"
       >
         {/* Header */}

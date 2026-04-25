@@ -1,27 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import AuthNavigator from './AuthNavigator';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, StatusBar } from 'react-native';
 import { Colors } from '../constants/colors';
 import { useTheme } from '../constants/ThemeContext';
 import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
+import MainNavigator from './MainNavigator';
+import { warmupBackend } from '../services/api';
 
 export default function AppNavigator() {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const [user,              setUser]              = useState(null);
   const [loading,           setLoading]           = useState(true);
   const [onboardingDone,    setOnboardingDone]    = useState(false);
+  const userDataRef = useRef(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        warmupBackend();
         setUser(firebaseUser);
         try {
+          if (userDataRef.current) {
+            setLoading(false);
+            return;
+          }
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
           if (userDoc.exists()) {
+            userDataRef.current = userDoc.data();
             setOnboardingDone(userDoc.data().onboarding_complete === true);
           } else {
             // Doc doesn't exist yet — wait briefly and retry once
@@ -43,6 +52,7 @@ export default function AppNavigator() {
       } else {
         setUser(null);
         setOnboardingDone(false);
+        userDataRef.current = null;
       }
       setLoading(false);
     });
@@ -62,11 +72,16 @@ export default function AppNavigator() {
 
   return (
     <NavigationContainer>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor="transparent"
+        translucent={true}
+      />
       {!user
         ? <AuthNavigator />
         : !onboardingDone
           ? <OnboardingScreen onComplete={() => setOnboardingDone(true)} userId={user.uid} />
-          : <AuthNavigator /> // Placeholder — we replace with MainNavigator next phase
+          : <MainNavigator />
       }
     </NavigationContainer>
   );
