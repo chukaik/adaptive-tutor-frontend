@@ -1,3 +1,5 @@
+import { auth } from './firebase';
+
 // The backend address comes from EXPO_PUBLIC_API_URL (see .env.example).
 // Expo inlines EXPO_PUBLIC_* variables into the bundle at build time, so this
 // must be read as `process.env.EXPO_PUBLIC_API_URL` exactly. If it is not set
@@ -6,25 +8,44 @@
 const DEFAULT_API_URL = 'https://adaptive-tutor-api.onrender.com';
 const BASE_URL = (process.env.EXPO_PUBLIC_API_URL || DEFAULT_API_URL).replace(/\/+$/, '');
 
-const headers = { 'Content-Type': 'application/json' };
+// Every API request carries the signed-in user's Firebase ID token so the
+// backend can verify who is calling. getIdToken() returns a cached token and
+// only contacts Firebase when it is close to expiry; forceRefresh skips the
+// cache.
+async function buildHeaders(forceRefresh) {
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error('You are not signed in. Please sign in and try again.');
+  }
+  const token = await user.getIdToken(forceRefresh);
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+  };
+}
 
-async function post(endpoint, body) {
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    method: 'POST', headers, body: JSON.stringify(body),
-  });
+async function request(method, endpoint, body) {
+  const send = async (forceRefresh) =>
+    fetch(`${BASE_URL}${endpoint}`, {
+      method,
+      headers: await buildHeaders(forceRefresh),
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+
+  let response = await send(false);
+  // A 401 may mean the cached token was revoked or expired early:
+  // get a fresh one and try exactly once more.
+  if (response.status === 401) {
+    response = await send(true);
+  }
+
   const data = await response.json();
   if (!response.ok) throw new Error(data.detail || 'Something went wrong');
   return data;
 }
 
-async function get(endpoint) {
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    method: 'GET', headers,
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.detail || 'Something went wrong');
-  return data;
-}
+const post = (endpoint, body) => request('POST', endpoint, body);
+const get  = (endpoint) => request('GET', endpoint);
 
 export const completeOnboarding = (userId, faculty, courseOfStudy, yearOfStudy, selectedCourseIds) =>
   post('/onboarding/complete', { user_id: userId, faculty, course_of_study: courseOfStudy, year_of_study: yearOfStudy, selected_course_ids: selectedCourseIds });
@@ -92,6 +113,8 @@ export const updateStreak = (userId) =>
 export const initCourse = (userId, courseId) =>
   post('/adaptive/init-course', { user_id: userId, course_id: courseId });
 
+// /health is public and is called as soon as auth state changes, so it does
+// not go through request() and sends no token.
 export const warmupBackend = async () => {
   try {
     await fetch(`${BASE_URL}/health`, {
