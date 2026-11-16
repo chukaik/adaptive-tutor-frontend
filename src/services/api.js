@@ -89,6 +89,9 @@ export const getFullProgress = (userId) =>
 export const updateStreak = (userId) =>
   post('/progress/streak/update', { user_id: userId });
 
+export const initCourse = (userId, courseId) =>
+  post('/adaptive/init-course', { user_id: userId, course_id: courseId });
+
 export const warmupBackend = async () => {
   try {
     await fetch(`${BASE_URL}/health`, {
