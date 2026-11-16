@@ -1,4 +1,10 @@
-const BASE_URL = 'https://adaptive-tutor-api.onrender.com';
+// The backend address comes from EXPO_PUBLIC_API_URL (see .env.example).
+// Expo inlines EXPO_PUBLIC_* variables into the bundle at build time, so this
+// must be read as `process.env.EXPO_PUBLIC_API_URL` exactly. If it is not set
+// (for example in an EAS build with no .env file), fall back to the deployed
+// server so existing builds keep working.
+const DEFAULT_API_URL = 'https://adaptive-tutor-api.onrender.com';
+const BASE_URL = (process.env.EXPO_PUBLIC_API_URL || DEFAULT_API_URL).replace(/\/+$/, '');
 
 const headers = { 'Content-Type': 'application/json' };
 
