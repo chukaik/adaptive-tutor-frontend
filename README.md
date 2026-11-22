@@ -14,12 +14,25 @@ The lesson, quiz, hint, chat and progress logic runs on the backend
 ([chukaik/adaptive-tutor-backend](https://github.com/chukaik/adaptive-tutor-backend)).
 This repository holds only the client.
 
-> Screenshots: see [docs/screenshots/](docs/screenshots/). <!-- TODO(Chukwugozim): add the images and embed 3–4 of them here. -->
+<table>
+  <tr>
+    <td><img src="docs/screenshots/08-lesson.jpg" width="200" alt="Lesson"></td>
+    <td><img src="docs/screenshots/09-quiz.jpg" width="200" alt="Quiz"></td>
+    <td><img src="docs/screenshots/10-quiz-result.jpg" width="200" alt="Quiz result"></td>
+    <td><img src="docs/screenshots/11-remedial-lesson.jpg" width="200" alt="Remedial lesson"></td>
+  </tr>
+  <tr>
+    <td colspan="4" align="center"><em>The adaptive loop: lesson, quiz, result and next step, remedial lesson</em></td>
+  </tr>
+</table>
+
+More in [Screenshots](#screenshots).
 
 ---
 
 ## Contents
 
+- [Screenshots](#screenshots)
 - [Screens](#screens)
 - [Stack](#stack)
 - [Code organisation](#code-organisation)
@@ -31,6 +44,110 @@ This repository holds only the client.
 - [Limitations](#limitations)
 - [Licence](#licence)
 - [Acknowledgements](#acknowledgements)
+
+---
+
+## Screenshots
+
+### Getting started
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/01-sign-up.jpg" width="200" alt="Sign up"></td>
+    <td><img src="docs/screenshots/02-sign-in.jpg" width="200" alt="Sign in"></td>
+    <td><img src="docs/screenshots/03-onboarding-1.jpg" width="200" alt="Onboarding, step 1"></td>
+  </tr>
+  <tr>
+    <td>Sign up with email or Google</td>
+    <td>Sign in</td>
+    <td>Onboarding step 1: faculty</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/04-onboarding-2.jpg" width="200" alt="Onboarding, step 3"></td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>Onboarding step 3: year of study</td>
+    <td></td>
+    <td></td>
+  </tr>
+</table>
+
+### Learning
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/05-home.jpg" width="200" alt="Home"></td>
+    <td><img src="docs/screenshots/06-learn.jpg" width="200" alt="Learn"></td>
+    <td><img src="docs/screenshots/07-course.jpg" width="200" alt="Course"></td>
+  </tr>
+  <tr>
+    <td>Home: streak, stats and courses</td>
+    <td>Learn: courses, topic status and search</td>
+    <td>Course: topics marked Mastered, In Progress or Locked</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/08-lesson.jpg" width="200" alt="Lesson"></td>
+    <td><img src="docs/screenshots/09-quiz.jpg" width="200" alt="Quiz"></td>
+    <td><img src="docs/screenshots/10-quiz-result.jpg" width="200" alt="Quiz result"></td>
+  </tr>
+  <tr>
+    <td>Lesson with analogy and code examples</td>
+    <td>Quiz with a hint open and the timer</td>
+    <td>Result: score, next step and per-question breakdown</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/11-remedial-lesson.jpg" width="200" alt="Remedial lesson"></td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>Remedial lesson, marked "Personalised"</td>
+    <td></td>
+    <td></td>
+  </tr>
+</table>
+
+### Progress
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/12-progress-dashboard.jpg" width="200" alt="Progress dashboard"></td>
+    <td><img src="docs/screenshots/13-performance-chart.jpg" width="200" alt="Performance chart"></td>
+    <td><img src="docs/screenshots/14-quiz-history.jpg" width="200" alt="Quiz history"></td>
+  </tr>
+  <tr>
+    <td>Dashboard: mastery by course</td>
+    <td>Chart: score per quiz attempt</td>
+    <td>Quiz history with retake</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/15-badges.jpg" width="200" alt="Badges"></td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>Badges earned and still locked</td>
+    <td></td>
+    <td></td>
+  </tr>
+</table>
+
+### Assistant
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/16-chukky-assistant.jpg" width="200" alt="AI tutor chat"></td>
+    <td><img src="docs/screenshots/17-chat-history.jpg" width="200" alt="Chat sessions"></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>Chat with Chukky, the AI tutor</td>
+    <td>Chat sessions: switch or start a new one</td>
+    <td></td>
+  </tr>
+</table>
 
 ---
 
