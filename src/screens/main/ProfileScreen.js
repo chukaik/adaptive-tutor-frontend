@@ -21,6 +21,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../constants/ThemeContext';
 import { Colors } from '../../constants/colors';
+import { initCourse } from '../../services/api';
 
 // ─── Cloudinary Config ───────────────────────────────────────────────────────
 
@@ -376,22 +377,7 @@ export default function ProfileScreen() {
       setEnrolledCourseIds(newEnrolled);
 
       try {
-        const API_BASE_URL =
-          'https://adaptive-tutor-api.onrender.com';
-
-        await fetch(
-          `${API_BASE_URL}/adaptive/init-course`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              user_id: userId,
-              course_id: courseId,
-            }),
-          }
-        );
+        await initCourse(userId, courseId);
       } catch (initError) {
         console.log('Course init error:', initError);
       }
