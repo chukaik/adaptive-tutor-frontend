@@ -1,5 +1,5 @@
 // ProfileScreen.js - Displays the student's profile information, including their name, email, profile picture, badges earned, and enrolled courses. Allows students to edit their profile details, change their profile picture, and view their earned badges. Also includes a sign-out button and handles loading states gracefully.
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -50,6 +50,21 @@ const uploadToCloudinary = async (imageUri) => {
     if (data.error) throw new Error(data.error.message);
     return data.secure_url;
   }
+};
+
+// Profile photos larger than this are rejected before upload.
+const MAX_PROFILE_PHOTO_BYTES = 2 * 1024 * 1024; // 2 MB
+
+// Size in bytes of an asset returned by expo-image-picker. fileSize is set on
+// Android and iOS but may be missing on web, so fall back to reading the
+// image as a blob.
+const getImageSize = async (asset) => {
+  if (typeof asset.fileSize === 'number' && asset.fileSize > 0) {
+    return asset.fileSize;
+  }
+  const response = await fetch(asset.uri);
+  const blob     = await response.blob();
+  return blob.size;
 };
 
 // ─── Web-safe alert helpers ───────────────────────────────────────────────────
@@ -264,7 +279,7 @@ export default function ProfileScreen() {
               query(collection(db, 'chat_history', userId, 'sessions'), limit(1))
             );
             hasChatHistory = !chatSnap.empty;
-          } catch (e) { hasChatHistory = false; }
+          } catch { hasChatHistory = false; }
 
           if (freshUserData) setUserData(freshUserData);
           setEnrolledCourseIds(freshUserData?.enrolled_courses || []);
@@ -302,14 +317,24 @@ export default function ProfileScreen() {
       quality:       0.7,
     });
     if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
       setUploadingPhoto(true);
       try {
-        const url = await uploadToCloudinary(result.assets[0].uri);
+        const size = await getImageSize(asset);
+        if (size > MAX_PROFILE_PHOTO_BYTES) {
+          const sizeMb = (size / (1024 * 1024)).toFixed(1);
+          webAlert(
+            'Image too large',
+            `This image is ${sizeMb} MB. Please choose an image smaller than 2 MB.`
+          );
+          return;
+        }
+        const url = await uploadToCloudinary(asset.uri);
         await updateDoc(doc(db, 'users', auth.currentUser.uid), { profile_picture_url: url });
         await updateProfile(auth.currentUser, { photoURL: url });
         setUserData(prev => ({ ...prev, profile_picture_url: url }));
         Alert.alert('Success', 'Profile picture updated!');
-      } catch (e) {
+      } catch {
         Alert.alert('Error', 'Failed to upload photo. Please try again.');
       } finally {
         setUploadingPhoto(false);
@@ -340,7 +365,7 @@ export default function ProfileScreen() {
       }));
       setIsEditing(false);
       webAlert('Saved', 'Your profile has been updated.');
-    } catch (e) {
+    } catch {
       webAlert('Error', 'Failed to save profile. Please try again.');
     } finally {
       setSaving(false);
@@ -361,7 +386,7 @@ export default function ProfileScreen() {
         await initCourse(userId, courseId);
       } catch (e) { console.log('Course init error:', e); }
       webAlert('Course Added', 'You have been enrolled. Visit the Learn tab to start your first lesson.');
-    } catch (e) {
+    } catch {
       webAlert('Error', 'Failed to add course.');
     }
   };
@@ -386,7 +411,7 @@ export default function ProfileScreen() {
       async () => {
         try {
           await signOut(auth);
-        } catch (e) {
+        } catch {
           webAlert('Error', 'Failed to sign out.');
         }
       },

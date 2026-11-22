@@ -315,7 +315,7 @@ export default function OnboardingScreen({ onComplete, userId }) {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.appName}>AdaptiveTutor</Text>
-        <Text style={styles.headerSub}>Let's set up your learning profile</Text>
+        <Text style={styles.headerSub}>Let&apos;s set up your learning profile</Text>
         <StepIndicator
           currentStep={step}
           totalSteps={totalSteps}

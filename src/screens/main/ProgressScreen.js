@@ -214,7 +214,7 @@ export default function ProgressScreen({ navigation }) {
         const sessionsSnap = await getDocs(sessionsQuery);
         sessions = sessionsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         setQuizSessions(sessions);
-      } catch (indexError) {
+      } catch {
         // Fallback: fetch without orderBy, sort in JS
         try {
           const sessionsQuery = query(

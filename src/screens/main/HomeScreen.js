@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,6 @@ import { COURSE_ID_COS201, COURSE_ID_CSC301 } from '../../constants/courseIds';
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const PRIMARY  = '#157C8E';
-const ACCENT   = '#E8A020';
 const INACTIVE = '#9CA3AF';
 
 const COURSES_META = [
@@ -92,10 +91,8 @@ export default function HomeScreen({ navigation }) {
   const [streak,        setStreak]        = useState(0);
   const [longestStreak, setLongestStreak] = useState(0);
   const [topicsMastered,setTopicsMastered]= useState(0);
-  const [totalTopics,   setTotalTopics]   = useState(0);
   const [avgScore,      setAvgScore]      = useState(0);
   const [activeTopic,     setActiveTopic]     = useState(null); // { courseCode, title, pct }
-  const [courseProgress,  setCourseProgress]  = useState([]);   // [{ code, title, done, total }]
   const [coursesProgress, setCoursesProgress] = useState({});   // { [courseId]: { totalTopics, masteredTopics, progressPercent } }
   const [enrolledIds,     setEnrolledIds]     = useState([]);   // course IDs from student_progress
 
@@ -169,25 +166,11 @@ export default function HomeScreen({ navigation }) {
       // Full progress
       if (progressData) {
         setTopicsMastered(progressData.topics_mastered ?? 0);
-        setTotalTopics(progressData.total_topics ?? 0);
         setAvgScore(
           typeof progressData.average_score === 'number'
             ? Math.round(progressData.average_score)
             : 0
         );
-
-        // Per-course progress breakdown
-        const perCourse = COURSES_META.map(meta => {
-          const found = progressData.courses?.find(c => c.course_id === meta.id);
-          return {
-            id:    meta.id,
-            code:  meta.code,
-            title: meta.title,
-            done:  found?.topics_mastered ?? 0,
-            total: found?.total_topics    ?? 0,
-          };
-        });
-        setCourseProgress(perCourse);
       }
 
       // Last active topic across all enrolled courses
@@ -210,7 +193,7 @@ export default function HomeScreen({ navigation }) {
       }
       setActiveTopic(best);
 
-    } catch (e) {
+    } catch {
       // Graceful fallback — state already initialised to zeros
     } finally {
       setLoading(false);
@@ -369,7 +352,7 @@ export default function HomeScreen({ navigation }) {
 
       {/* ── Daily tip ── */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Today's Tip</Text>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Today&apos;s Tip</Text>
         <View style={[styles.tipCard, { backgroundColor: isDark ? '#0E2A30' : '#E8F4F6' }]}>
           <Text style={styles.tipIcon}>💡</Text>
           <Text style={[styles.tipText, { color: PRIMARY }]}>{DAILY_TIP}</Text>

@@ -121,7 +121,7 @@ export const warmupBackend = async () => {
       method: 'GET',
       signal: AbortSignal.timeout(10000),
     });
-  } catch (e) {
+  } catch {
     // Silently ignore — warmup is best effort
   }
 };

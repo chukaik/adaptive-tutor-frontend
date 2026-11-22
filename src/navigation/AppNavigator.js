@@ -41,12 +41,12 @@ export default function AppNavigator() {
                 if (retryDoc.exists()) {
                   setOnboardingDone(retryDoc.data().onboarding_complete === true);
                 }
-              } catch (e) {
+              } catch {
                 setOnboardingDone(false);
               }
             }, 1500);
           }
-        } catch (e) {
+        } catch {
           setOnboardingDone(false);
         }
       } else {

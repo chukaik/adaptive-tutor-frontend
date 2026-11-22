@@ -183,7 +183,7 @@ export default function CourseScreen({ navigation, route }) {
       const q = query(lessonsRef, where('user_id', '==', userId));
       const snapshot = await getDocs(q);
       return new Set(snapshot.docs.map(d => d.data().topic_id));
-    } catch (e) {
+    } catch {
       return new Set();
     }
   };
@@ -201,7 +201,7 @@ export default function CourseScreen({ navigation, route }) {
       try {
         const result = await getLearningState(userId, courseId);
         topicsData = result.topics || [];
-      } catch (e) {
+      } catch {
         topicsData = [];
       }
 
@@ -272,7 +272,7 @@ export default function CourseScreen({ navigation, route }) {
       try {
         const fallback = await fetchTopicsDirectly(courseId);
         setTopics(fallback);
-      } catch (e) {
+      } catch {
         setTopics([]);
       }
     } finally {
