@@ -2,7 +2,8 @@
 
 AdaptiveTutor is the client app for my final-year BSc project in the Department of
 Computer Science, Adeleke University (2026), supervised by Mr Jeremiah Balogun. It is an
-Expo / React Native app that runs on Android, iOS and the web.
+Expo / React Native app for Android, iOS and the web. It has been tested on Android and
+the web, not on iOS.
 
 A student signs in, chooses courses, and works through each course topic by topic. For
 each topic the app requests a lesson and a quiz from the backend. The quiz result decides
@@ -279,7 +280,7 @@ Each screen holds its own state, data fetching (Firestore and `services/api.js`)
 
 Requirements:
 
-- Node.js and npm. <!-- TODO(Chukwugozim): state the Node version you develop with. Lint was run here with Node 20.19.4. -->
+- Node.js 20 and npm (developed with Node 20.19.4).
 - For Android: the Expo Go app on a device, or Android Studio with an emulator.
 - For iOS: the Expo Go app on an iPhone, or Xcode with a simulator (macOS only).
 - For builds: an [Expo](https://expo.dev) account and `eas-cli` (`npm install -g eas-cli`).
@@ -335,10 +336,10 @@ The app calls the deployed backend, so you need an internet connection. When a u
 signs in, the app sends a request to `/health` to wake the backend. The first lesson or
 quiz after a period of inactivity can still be slow.
 
-**Google sign-in by platform.** On web it uses the Firebase popup. On Android it uses
-`expo-auth-session` with the Android client ID. No iOS client ID is configured, so Google
-sign-in is not expected to work on iOS. Email/password sign-in does not depend on the platform.
-<!-- TODO(Chukwugozim): confirm which platforms you have tested Google sign-in on, and whether it works in Expo Go. -->
+**Google sign-in by platform.** On web it uses the Firebase popup, and it works. On
+Android it uses `expo-auth-session` with the Android client ID, but it does not currently
+work there. No iOS client ID is configured and it has not been tested on iOS. Use
+email/password sign-in on Android; it works on every platform.
 
 ---
 
@@ -355,13 +356,21 @@ eas build -p android --profile production   # also an APK (not an AAB)
 
 App identifiers: `com.adeleke.adaptivetutor` (Android package and iOS bundle ID).
 
-No iOS-specific build settings are in `eas.json`. An iOS build would use EAS defaults and
-needs an Apple Developer account. <!-- TODO(Chukwugozim): state whether an iOS build has ever been made. -->
+No iOS-specific build settings are in `eas.json`. An iOS build has been made with EAS
+defaults, but it has never been installed or run: installing on an iPhone needs a paid
+Apple Developer account. The app has not been tested on iOS.
 
 **Over-the-air updates.** `expo-updates` is installed, `app.json` sets an `updates.url`,
-and `runtimeVersion.policy` is `appVersion`. A JS-only change can be published to
-existing builds with the same app version using `eas update`.
-<!-- TODO(Chukwugozim): confirm the channel/branch you publish updates to, or remove this paragraph if you do not use updates. -->
+and `runtimeVersion.policy` is `appVersion`. JavaScript-only changes are published to the
+`main` update branch:
+
+```bash
+eas update --branch main
+```
+
+Neither build profile in `eas.json` sets a `channel`, so it has not been confirmed that
+installed APKs receive these updates. Linking them would mean adding a channel (for
+example `"channel": "main"`) to the profiles and rebuilding.
 
 ---
 
@@ -390,8 +399,8 @@ GET  /chat/history/{uid}             GET  /health
 `getLessonHistory`, `generatePersonalizedQuiz` and `getChatHistory` are defined in
 `api.js` but not called from any screen.
 
-How lessons and quizzes are generated, and how the next action is decided, is documented
-in the backend repository. <!-- TODO(Chukwugozim): link the specific backend README section once it exists. -->
+How lessons and quizzes are generated, and how the next action is decided, is implemented
+in the backend repository.
 
 ### Firestore security rules
 
@@ -446,13 +455,12 @@ Current state:
 
 - **No automated tests.** There are no unit, component or end-to-end tests in this
   repository, and no CI. All testing so far has been manual.
-- **Two screen files are over 1,000 lines and should be split** into smaller
-  components and hooks (data fetching, badge logic, sub-views):
+- **Several screen files are large and should be split** into smaller components and
+  hooks (data fetching, badge logic, sub-views):
   - `src/screens/main/ProgressScreen.js`: 1,127 lines
-  - `src/screens/main/ProfileScreen.js`: 1,084 lines
-
-  Two more are close behind: `src/screens/chat/ChatScreen.js` (811) and
-  `src/screens/main/LearnScreen.js` (807).
+  - `src/screens/main/ProfileScreen.js`: 983 lines
+  - `src/screens/chat/ChatScreen.js`: 811 lines
+  - `src/screens/main/LearnScreen.js`: 803 lines
 - **Most configuration is hard-coded** (see [Environment variables](#environment-variables)).
   Only the backend URL can be set from the environment (`EXPO_PUBLIC_API_URL`). Changing
   the Firebase project, Google sign-in client IDs or Cloudinary account means editing source.
@@ -464,18 +472,21 @@ Current state:
 - **A user can change any field of their own profile document.** The
   [Firestore rules](#firestore-security-rules) restrict each user to their own
   `users/{uid}` document but do not validate which fields are written.
-- **Auth persistence on native is not set up.** `firebase/auth` is initialised with
-  `getAuth()` and AsyncStorage is installed but not connected. Users may have to sign in
-  again after restarting the app on Android/iOS.
-  <!-- TODO(Chukwugozim): confirm this behaviour on a device. -->
+- **Users must sign in again after restarting the Android app.** `firebase/auth` is
+  initialised with `getAuth()`, which on React Native keeps the session in memory only.
+  AsyncStorage is installed but not connected; initialising Auth with
+  `initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) })` would
+  fix this. The web app is not affected.
 - **Dark mode is not saved.** The theme toggle is held in React state only. A
   `theme_mode` field is written to the user document but never read.
-- **Google sign-in on iOS is not configured** (no iOS client ID).
+- **Google sign-in works only on the web.** It does not currently work on Android, and
+  no iOS client ID is configured.
+- **Not tested on iOS.** An iOS build exists but has never been run.
 - **No accessibility work yet.** No `accessibilityLabel`s are set, and screen-reader use has
   not been tested.
 - **Leftovers:** two empty component files (`src/components/AIChatFAB.js`,
   `LoadingSpinner.js`), three unused dependencies (see [Stack](#stack)), large blocks of
-  commented-out code in some screens, and the lint findings above.
+  commented-out code in some screens, and the six hook-dependency lint warnings above.
 
 ---
 
@@ -485,8 +496,10 @@ Current state:
 
 ## Acknowledgements
 
-- Mr Jeremiah Balogun, project supervisor, Department of Computer Science, Adeleke University.
+- Mr Jeremiah Balogun, project supervisor, Department of Computer Science, Adeleke
+  University, who also provided the curriculum the course content is based on.
+- The COS201 and CSC301 topic outlines follow the National Universities Commission's
+  Core Curriculum and Minimum Academic Standards (CCMAS).
 - Built with [Expo](https://expo.dev), [React Navigation](https://reactnavigation.org),
   [Firebase](https://firebase.google.com) and
   [react-native-chart-kit](https://github.com/indiespirit/react-native-chart-kit).
-<!-- TODO(Chukwugozim): add anyone else you want to thank (e.g. students who tested the app, lecturers whose course outlines you used for COS201/CSC301). -->
