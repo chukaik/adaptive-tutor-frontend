@@ -1,3 +1,4 @@
+// QuizScreen.js - Main screen for taking a quiz on a specific topic. Fetches questions from the backend, displays them in an interactive format, allows students to request hints (with a limit), and submit their answers. Tracks time taken and handles loading and error states gracefully.
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -6,7 +7,6 @@ import {
   ScrollView,
   TextInput,
   ActivityIndicator,
-  KeyboardAvoidingView,
   Keyboard,
   StyleSheet,
   Platform,
@@ -17,7 +17,6 @@ import { auth } from '../../services/firebase';
 import { fetchQuiz, submitQuiz, requestHint } from '../../services/api';
 import { useTheme } from '../../constants/ThemeContext';
 import { Colors } from '../../constants/colors';
-import { webScrollStyle, scrollContentStyle, webRootStyle } from '../../constants/webStyles';
 
 const MAX_HINTS = 7;
 const QUESTIONS_PER_QUIZ = 10;
@@ -28,34 +27,62 @@ const formatTime = (seconds) => {
   return `${m}:${s}`;
 };
 
+// ─── Web-safe alert helpers ───────────────────────────────────────────────────
+// React Native Web's Alert.alert() renders its modal behind an aria-hidden
+// overlay, which blocks pointer events on the confirm/cancel buttons — making
+// every confirmation dialog appear frozen. On web we use the browser's native
+// window.confirm() and window.alert() instead, which are not affected by the
+// aria-hidden issue. On native (iOS/Android) we keep Alert.alert() unchanged.
+
+const webConfirm = (title, message, onConfirm, onCancel) => {
+  if (Platform.OS === 'web') {
+    const result = window.confirm(`${title}\n\n${message}`);
+    if (result) { onConfirm && onConfirm(); }
+    else        { onCancel  && onCancel();  }
+  } else {
+    Alert.alert(title, message, [
+      { text: 'Cancel', style: 'cancel', onPress: onCancel },
+      { text: 'Confirm', onPress: onConfirm },
+    ]);
+  }
+};
+
+const webAlert = (title, message) => {
+  if (Platform.OS === 'web') {
+    window.alert(`${title}\n\n${message}`);
+  } else {
+    Alert.alert(title, message, [{ text: 'OK' }]);
+  }
+};
+
 export default function QuizScreen({ route, navigation }) {
   const { topicId, topicTitle, courseId, difficulty, sessionType } = route.params;
   const { theme, isDark } = useTheme();
 
-  const [questions, setQuestions] = useState([]);
-  const [answers, setAnswers] = useState({});
-  const [hints, setHints] = useState({});
-  const [hintsExpanded, setHintsExpanded] = useState({});
-  const [hintsUsed, setHintsUsed] = useState(0);
-  const [loadingHint, setLoadingHint] = useState({});
-  const [sessionId, setSessionId] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [timerActive, setTimerActive] = useState(false);
-  const [error, setError] = useState(null);
+  const [questions,       setQuestions]       = useState([]);
+  const [answers,         setAnswers]         = useState({});
+  const [hints,           setHints]           = useState({});
+  const [hintsExpanded,   setHintsExpanded]   = useState({});
+  const [hintsUsed,       setHintsUsed]       = useState(0);
+  const [loadingHint,     setLoadingHint]     = useState({});
+  const [sessionId,       setSessionId]       = useState(null);
+  const [loading,         setLoading]         = useState(true);
+  const [submitting,      setSubmitting]      = useState(false);
+  const [elapsedSeconds,  setElapsedSeconds]  = useState(0);
+  const [timerActive,     setTimerActive]     = useState(false);
+  const [error,           setError]           = useState(null);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   const timerRef = useRef(null);
 
   useEffect(() => {
     loadQuiz();
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
+  // Only track keyboard on native — not needed on web
   useEffect(() => {
+    if (Platform.OS === 'web') return;
     const showSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       () => setKeyboardVisible(true)
@@ -64,23 +91,16 @@ export default function QuizScreen({ route, navigation }) {
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
       () => setKeyboardVisible(false)
     );
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
+    return () => { showSub.remove(); hideSub.remove(); };
   }, []);
 
   useEffect(() => {
     if (timerActive) {
-      timerRef.current = setInterval(() => {
-        setElapsedSeconds(prev => prev + 1);
-      }, 1000);
+      timerRef.current = setInterval(() => setElapsedSeconds(p => p + 1), 1000);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
     }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [timerActive]);
 
   const loadQuiz = async () => {
@@ -112,73 +132,72 @@ export default function QuizScreen({ route, navigation }) {
       setHintsExpanded(prev => ({ ...prev, [questionId]: true }));
       setHintsUsed(prev => prev + 1);
     } catch (e) {
-      Alert.alert('Error', 'Could not load hint. Please try again.');
+      webAlert('Error', 'Could not load hint. Please try again.');
     } finally {
       setLoadingHint(prev => ({ ...prev, [questionId]: false }));
     }
   };
+
+  // ─── handleSubmit ─────────────────────────────────────────────────────────
+  // Uses webConfirm instead of Alert.alert so the confirmation dialog works
+  // on web. All submit logic (grading via API, navigation to results) is
+  // completely unchanged — only the dialog mechanism is swapped on web.
 
   const handleSubmit = async () => {
     const unanswered = questions.filter(
       q => !answers[q.question_id] || answers[q.question_id].trim() === ''
     );
     if (unanswered.length > 0) {
-      Alert.alert(
+      webAlert(
         'Incomplete Quiz',
-        `You have ${unanswered.length} unanswered question(s). Please answer all questions before submitting.`,
-        [{ text: 'OK' }]
+        `You have ${unanswered.length} unanswered question(s). Please answer all questions before submitting.`
       );
       return;
     }
 
-    Alert.alert(
+    const doSubmit = async () => {
+      setTimerActive(false);
+      setSubmitting(true);
+      try {
+        const userId = auth.currentUser?.uid;
+        const answersArray = questions.map(q => ({
+          question_id:    q.question_id,
+          question_type:  q.question_type,
+          student_answer: answers[q.question_id] || '',
+        }));
+        const result = await submitQuiz(
+          sessionId, userId, topicId, difficulty,
+          answersArray, elapsedSeconds
+        );
+        navigation.navigate('QuizResultScreen', {
+          result, topicId, topicTitle, courseId, difficulty,
+        });
+      } catch (e) {
+        webAlert('Error', 'Failed to submit quiz. Please try again.');
+        setTimerActive(true);
+      } finally {
+        setSubmitting(false);
+      }
+    };
+
+    webConfirm(
       'Submit Quiz',
       'Are you sure you want to submit? You cannot change your answers after submission.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Submit',
-          onPress: async () => {
-            setTimerActive(false);
-            setSubmitting(true);
-            try {
-              const userId = auth.currentUser?.uid;
-              const answersArray = questions.map(q => ({
-                question_id: q.question_id,
-                question_type: q.question_type,
-                student_answer: answers[q.question_id] || '',
-              }));
-              const result = await submitQuiz(
-                sessionId, userId, topicId, difficulty,
-                answersArray, elapsedSeconds
-              );
-              navigation.navigate('QuizResultScreen', {
-                result,
-                topicId,
-                topicTitle,
-                courseId,
-                difficulty,
-              });
-            } catch (e) {
-              Alert.alert('Error', 'Failed to submit quiz. Please try again.');
-              setTimerActive(true);
-            } finally {
-              setSubmitting(false);
-            }
-          },
-        },
-      ]
+      doSubmit,
+      null  // cancel — do nothing
     );
   };
 
+  // ─── handleBack ──────────────────────────────────────────────────────────
+  // Uses webConfirm instead of Alert.alert so the exit confirmation works
+  // on web. Navigation logic is completely unchanged.
+
   const handleBack = () => {
-    Alert.alert(
+    webConfirm(
       'Exit Quiz',
       'Are you sure you want to exit? Your progress will be lost.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Exit', style: 'destructive', onPress: () => navigation.goBack() },
-      ]
+      () => navigation.goBack(),
+      null  // cancel — stay on screen
     );
   };
 
@@ -212,11 +231,31 @@ export default function QuizScreen({ route, navigation }) {
 
   const difficultyLabel = difficulty === 'easy' ? 'First Level' : 'Second Level';
 
+  const rootStyle = Platform.OS === 'web'
+    ? [styles.screen, {
+        backgroundColor: theme.background,
+        height: '100vh',
+        maxHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }]
+    : [styles.screen, { backgroundColor: theme.background }];
+
+  const scrollStyle = Platform.OS === 'web'
+    ? { flex: 1, overflowY: 'auto' }
+    : { flex: 1 };
+
   return (
-    <View style={[styles.screen, { backgroundColor: theme.background }, webRootStyle]}>
-      {/* Fixed Header */}
+    <View style={rootStyle}>
+
+      {/* Header */}
       <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
-        <TouchableOpacity style={styles.headerBtn} onPress={handleBack}>
+        <TouchableOpacity
+          style={styles.headerBtn}
+          onPress={handleBack}
+          hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+        >
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
@@ -236,212 +275,186 @@ export default function QuizScreen({ route, navigation }) {
         </Text>
       </View>
 
-      <KeyboardAvoidingView
-        style={[
-          { flex: 1 },
-          Platform.OS === 'web' && {
-            height: 0,
-            minHeight: '100%',
-          }
-        ]}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
+      {/* Scrollable Quiz Content */}
+      <ScrollView
+        style={scrollStyle}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <ScrollView
-          style={webScrollStyle}
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingBottom: keyboardVisible ? 160 : 120 },
-            scrollContentStyle,
-          ]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Quiz Info Row */}
-          <View style={styles.quizInfoRow}>
-            <Text style={[styles.quizInfoText, { color: theme.textSecondary }]}>
-              {questions.length} Questions
-            </Text>
-            <Text style={[styles.quizInfoText, { color: theme.textSecondary }]}>
-              {difficultyLabel}
-            </Text>
-          </View>
+        {/* Quiz Info Row */}
+        <View style={styles.quizInfoRow}>
+          <Text style={[styles.quizInfoText, { color: theme.textSecondary }]}>
+            {questions.length} Questions
+          </Text>
+          <Text style={[styles.quizInfoText, { color: theme.textSecondary }]}>
+            {difficultyLabel}
+          </Text>
+        </View>
 
-          {/* Questions */}
-          {questions.map((question, index) => {
-            const qId = question.question_id;
-            const isMultipleChoice = question.question_type === 'multiple_choice';
-            const hintFetched = !!hints[qId];
-            const hintShown = hintsExpanded[qId];
-            const isLoadingThisHint = loadingHint[qId];
-            const canUseHint = hintsUsed < MAX_HINTS || hintFetched;
+        {/* Questions */}
+        {questions.map((question, index) => {
+          const qId               = question.question_id;
+          const isMultipleChoice  = question.question_type === 'multiple_choice';
+          const hintFetched       = !!hints[qId];
+          const hintShown         = hintsExpanded[qId];
+          const isLoadingThisHint = loadingHint[qId];
+          const canUseHint        = hintsUsed < MAX_HINTS || hintFetched;
 
-            return (
-              <View
-                key={qId}
-                style={[
-                  styles.questionCard,
-                  {
-                    backgroundColor: theme.surface,
-                    shadowColor: isDark ? '#000' : '#B0BEC5',
-                  },
-                ]}
-              >
-                <View style={styles.questionHeader}>
-                  <View style={styles.qNumBadge}>
-                    <Text style={styles.qNumText}>Q{index + 1}</Text>
-                  </View>
-                  <View style={[styles.typePill, { borderColor: theme.border }]}>
-                    <Text style={[styles.typePillText, { color: theme.textSecondary }]}>
-                      {isMultipleChoice ? 'Multiple Choice' : 'Written Answer'}
-                    </Text>
-                  </View>
-                  {isLoadingThisHint ? (
-                    <ActivityIndicator size="small" color={Colors.accent} style={styles.hintLoader} />
-                  ) : (
-                    <TouchableOpacity
-                      style={[
-                        styles.hintPill,
-                        hintFetched
-                          ? { backgroundColor: '#FFF3CD', borderColor: Colors.accent }
-                          : canUseHint
-                          ? { backgroundColor: 'transparent', borderColor: Colors.accent }
-                          : { backgroundColor: 'transparent', borderColor: theme.border, opacity: 0.4 },
-                      ]}
-                      onPress={() => canUseHint && handleHint(qId, question.question_text)}
-                      disabled={!canUseHint && !hintFetched}
-                    >
-                      <Text
-                        style={[
-                          styles.hintPillText,
-                          { color: canUseHint ? Colors.accent : theme.textSecondary },
-                        ]}
-                      >
-                        💡 Hint
-                      </Text>
-                    </TouchableOpacity>
-                  )}
+          return (
+            <View
+              key={qId}
+              style={[
+                styles.questionCard,
+                { backgroundColor: theme.surface, shadowColor: isDark ? '#000' : '#B0BEC5' },
+              ]}
+            >
+              <View style={styles.questionHeader}>
+                <View style={styles.qNumBadge}>
+                  <Text style={styles.qNumText}>Q{index + 1}</Text>
                 </View>
-
-                <Text style={[styles.questionText, { color: theme.text }]}>
-                  {question.question_text}
-                </Text>
-
-                {hintShown && hints[qId] && (
-                  <View style={styles.hintBox}>
-                    <Text style={styles.hintLabel}>💡 Hint:</Text>
-                    <Text style={styles.hintContent}>{hints[qId]}</Text>
-                  </View>
-                )}
-
-                {isMultipleChoice ? (
-                  <View style={styles.optionsContainer}>
-                    {(question.options || []).map((option, optIdx) => {
-                      const isSelected = answers[qId] === option;
-                      const letter = String.fromCharCode(65 + optIdx);
-                      return (
-                        <TouchableOpacity
-                          key={optIdx}
-                          style={[
-                            styles.optionButton,
-                            isSelected
-                              ? { backgroundColor: Colors.primary, borderColor: Colors.primary }
-                              : { backgroundColor: theme.surface, borderColor: theme.border },
-                          ]}
-                          onPress={() => setAnswers(prev => ({ ...prev, [qId]: option }))}
-                        >
-                          <View
-                            style={[
-                              styles.optionLetterBadge,
-                              { backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : theme.background },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.optionLetter,
-                                { color: isSelected ? '#fff' : Colors.primary },
-                              ]}
-                            >
-                              {letter}
-                            </Text>
-                          </View>
-                          <Text
-                            style={[
-                              styles.optionText,
-                              { color: isSelected ? '#fff' : theme.text },
-                            ]}
-                          >
-                            {option}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+                <View style={[styles.typePill, { borderColor: theme.border }]}>
+                  <Text style={[styles.typePillText, { color: theme.textSecondary }]}>
+                    {isMultipleChoice ? 'Multiple Choice' : 'Written Answer'}
+                  </Text>
+                </View>
+                {isLoadingThisHint ? (
+                  <ActivityIndicator size="small" color={Colors.accent} style={styles.hintLoader} />
                 ) : (
-                  <View style={styles.typedContainer}>
-                    <Text style={[styles.typedLabel, { color: theme.textSecondary }]}>
-                      Your Answer:
+                  <TouchableOpacity
+                    style={[
+                      styles.hintPill,
+                      hintFetched
+                        ? { backgroundColor: '#FFF3CD', borderColor: Colors.accent }
+                        : canUseHint
+                        ? { backgroundColor: 'transparent', borderColor: Colors.accent }
+                        : { backgroundColor: 'transparent', borderColor: theme.border, opacity: 0.4 },
+                    ]}
+                    onPress={() => canUseHint && handleHint(qId, question.question_text)}
+                    disabled={!canUseHint && !hintFetched}
+                  >
+                    <Text style={[
+                      styles.hintPillText,
+                      { color: canUseHint ? Colors.accent : theme.textSecondary },
+                    ]}>
+                      💡 Hint
                     </Text>
-                    <TextInput
-                      style={[
-                        styles.typedInput,
-                        {
-                          backgroundColor: theme.surface,
-                          borderColor: answers[qId] ? Colors.primary : theme.border,
-                          color: theme.text,
-                        },
-                      ]}
-                      multiline
-                      placeholder="Type your answer here..."
-                      placeholderTextColor={theme.textSecondary}
-                      value={answers[qId] || ''}
-                      onChangeText={text => setAnswers(prev => ({ ...prev, [qId]: text }))}
-                      textAlignVertical="top"
-                    />
-                  </View>
+                  </TouchableOpacity>
                 )}
               </View>
-            );
-          })}
 
-          {/* Submit Section */}
-          <View style={styles.submitSection}>
-            <Text style={[styles.progressText, { color: theme.textSecondary }]}>
-              You have answered{' '}
-              <Text style={{ color: Colors.primary, fontWeight: '700' }}>{answeredCount}</Text>
-              {' '}of{' '}
-              <Text style={{ color: Colors.primary, fontWeight: '700' }}>{questions.length}</Text>
-              {' '}questions
-            </Text>
-            <View style={[styles.progressTrack, { backgroundColor: theme.border }]}>
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: questions.length > 0
-                      ? `${(answeredCount / questions.length) * 100}%`
-                      : '0%',
-                  },
-                ]}
-              />
-            </View>
-            <TouchableOpacity
-              style={[
-                styles.submitButton,
-                { backgroundColor: submitting ? Colors.primaryDark : Colors.primary },
-              ]}
-              onPress={handleSubmit}
-              disabled={submitting}
-            >
-              {submitting ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.submitButtonText}>Submit Quiz →</Text>
+              <Text style={[styles.questionText, { color: theme.text }]}>
+                {question.question_text}
+              </Text>
+
+              {hintShown && hints[qId] && (
+                <View style={styles.hintBox}>
+                  <Text style={styles.hintLabel}>💡 Hint:</Text>
+                  <Text style={styles.hintContent}>{hints[qId]}</Text>
+                </View>
               )}
-            </TouchableOpacity>
+
+              {isMultipleChoice ? (
+                <View style={styles.optionsContainer}>
+                  {(question.options || []).map((option, optIdx) => {
+                    const isSelected = answers[qId] === option;
+                    const letter     = String.fromCharCode(65 + optIdx);
+                    return (
+                      <TouchableOpacity
+                        key={optIdx}
+                        style={[
+                          styles.optionButton,
+                          isSelected
+                            ? { backgroundColor: Colors.primary, borderColor: Colors.primary }
+                            : { backgroundColor: theme.surface, borderColor: theme.border },
+                        ]}
+                        onPress={() => setAnswers(prev => ({ ...prev, [qId]: option }))}
+                      >
+                        <View style={[
+                          styles.optionLetterBadge,
+                          { backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : theme.background },
+                        ]}>
+                          <Text style={[
+                            styles.optionLetter,
+                            { color: isSelected ? '#fff' : Colors.primary },
+                          ]}>
+                            {letter}
+                          </Text>
+                        </View>
+                        <Text style={[
+                          styles.optionText,
+                          { color: isSelected ? '#fff' : theme.text },
+                        ]}>
+                          {option}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ) : (
+                <View style={styles.typedContainer}>
+                  <Text style={[styles.typedLabel, { color: theme.textSecondary }]}>
+                    Your Answer:
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.typedInput,
+                      {
+                        backgroundColor: theme.surface,
+                        borderColor:     answers[qId] ? Colors.primary : theme.border,
+                        color:           theme.text,
+                      },
+                    ]}
+                    multiline
+                    placeholder="Type your answer here..."
+                    placeholderTextColor={theme.textSecondary}
+                    value={answers[qId] || ''}
+                    onChangeText={text => setAnswers(prev => ({ ...prev, [qId]: text }))}
+                    textAlignVertical="top"
+                  />
+                </View>
+              )}
+            </View>
+          );
+        })}
+
+        {/* Submit Section */}
+        <View style={styles.submitSection}>
+          <Text style={[styles.progressText, { color: theme.textSecondary }]}>
+            You have answered{' '}
+            <Text style={{ color: Colors.primary, fontWeight: '700' }}>{answeredCount}</Text>
+            {' '}of{' '}
+            <Text style={{ color: Colors.primary, fontWeight: '700' }}>{questions.length}</Text>
+            {' '}questions
+          </Text>
+          <View style={[styles.progressTrack, { backgroundColor: theme.border }]}>
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: questions.length > 0
+                    ? `${(answeredCount / questions.length) * 100}%`
+                    : '0%',
+                },
+              ]}
+            />
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+          <TouchableOpacity
+            style={[
+              styles.submitButton,
+              { backgroundColor: submitting ? Colors.primaryDark : Colors.primary },
+            ]}
+            onPress={handleSubmit}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.submitButtonText}>Submit Quiz →</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -489,6 +502,7 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
+    zIndex: 10,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -497,12 +511,12 @@ const styles = StyleSheet.create({
         shadowRadius: 6,
       },
       android: { elevation: 2 },
-      web: { boxShadow: '0px 2px 6px rgba(0,0,0,0.08)' },
+      web: { boxShadow: '0px 2px 6px rgba(0,0,0,0.08)', flexShrink: 0 },
     }),
   },
   headerBtn: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -527,6 +541,9 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F0C060',
     paddingVertical: 8,
     paddingHorizontal: 16,
+    ...Platform.select({
+      web: { flexShrink: 0 },
+    }),
   },
   hintsBannerText: {
     fontSize: 13,
@@ -535,7 +552,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 32,
+    paddingBottom: 60,
+    flexGrow: 1,
   },
   quizInfoRow: {
     flexDirection: 'row',
@@ -671,7 +689,7 @@ const styles = StyleSheet.create({
   },
   submitSection: {
     paddingTop: 8,
-    paddingBottom: 80,
+    paddingBottom: 40,
   },
   progressText: {
     fontSize: 13,
