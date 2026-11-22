@@ -175,18 +175,33 @@ npm install
 
 ### Environment variables
 
-**There are none at present.** All configuration is hard-coded in the source:
+One variable is read from the environment:
+
+| Variable | Used in | If not set |
+| --- | --- | --- |
+| `EXPO_PUBLIC_API_URL` | `src/services/api.js`: base URL of the backend, without a trailing slash | Falls back to the deployed backend, `https://adaptive-tutor-api.onrender.com` |
+
+To use a different backend (for example one running on your machine), copy
+`.env.example` to `.env.local` (git-ignored) and set the variable:
+
+```bash
+EXPO_PUBLIC_API_URL=http://localhost:8000
+```
+
+Expo inlines `EXPO_PUBLIC_*` variables into the JavaScript bundle at build time, so they
+are visible to anyone who has the app. Do not put secrets in them. Restart `npm start`
+after changing the file.
+
+Everything else is still hard-coded in the source:
 
 | Setting | Where |
 | --- | --- |
-| Backend base URL (`https://adaptive-tutor-api.onrender.com`) | `src/services/api.js` |
 | Firebase web config | `src/services/firebase.js` |
 | Google OAuth client IDs (web, Android) | `src/screens/auth/LoginScreen.js`, `SignUpScreen.js` |
 | Cloudinary cloud name and unsigned upload preset | `src/screens/main/ProfileScreen.js` |
 | Course and topic Firestore IDs | `src/constants/courseIds.js` and several screens |
 
-To point the app at your own backend or Firebase project, edit those files.
-<!-- TODO(Chukwugozim): move these into EXPO_PUBLIC_* variables with a .env.example, then replace this section. -->
+To use your own Firebase project, Google OAuth clients or Cloudinary account, edit those files.
 
 ---
 
@@ -297,8 +312,9 @@ committed sources:
 
   Two more are close behind: `src/screens/chat/ChatScreen.js` (811) and
   `src/screens/main/LearnScreen.js` (807).
-- **Configuration is hard-coded** (see [Environment variables](#environment-variables)).
-  Changing the backend, Firebase project or Cloudinary account means editing source.
+- **Most configuration is hard-coded** (see [Environment variables](#environment-variables)).
+  Only the backend URL can be set from the environment (`EXPO_PUBLIC_API_URL`). Changing
+  the Firebase project, Google sign-in client IDs or Cloudinary account means editing source.
 - **Duplicated data and logic.** The course list (IDs, codes, titles) is defined in
   several screens rather than once, and only two courses exist. Badge rules are
   implemented separately in `ProfileScreen` and `ProgressScreen`.
