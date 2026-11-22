@@ -52,6 +52,21 @@ const uploadToCloudinary = async (imageUri) => {
   }
 };
 
+// Profile photos larger than this are rejected before upload.
+const MAX_PROFILE_PHOTO_BYTES = 2 * 1024 * 1024; // 2 MB
+
+// Size in bytes of an asset returned by expo-image-picker. fileSize is set on
+// Android and iOS but may be missing on web, so fall back to reading the
+// image as a blob.
+const getImageSize = async (asset) => {
+  if (typeof asset.fileSize === 'number' && asset.fileSize > 0) {
+    return asset.fileSize;
+  }
+  const response = await fetch(asset.uri);
+  const blob     = await response.blob();
+  return blob.size;
+};
+
 // ─── Web-safe alert helpers ───────────────────────────────────────────────────
 // React Native Web's Alert.alert() renders its modal behind an aria-hidden
 // overlay, which blocks pointer events on confirm/cancel buttons.
@@ -302,9 +317,19 @@ export default function ProfileScreen() {
       quality:       0.7,
     });
     if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
       setUploadingPhoto(true);
       try {
-        const url = await uploadToCloudinary(result.assets[0].uri);
+        const size = await getImageSize(asset);
+        if (size > MAX_PROFILE_PHOTO_BYTES) {
+          const sizeMb = (size / (1024 * 1024)).toFixed(1);
+          webAlert(
+            'Image too large',
+            `This image is ${sizeMb} MB. Please choose an image smaller than 2 MB.`
+          );
+          return;
+        }
+        const url = await uploadToCloudinary(asset.uri);
         await updateDoc(doc(db, 'users', auth.currentUser.uid), { profile_picture_url: url });
         await updateProfile(auth.currentUser, { photoURL: url });
         setUserData(prev => ({ ...prev, profile_picture_url: url }));
