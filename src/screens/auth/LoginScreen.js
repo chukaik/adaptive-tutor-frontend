@@ -10,10 +10,10 @@ import {
   GoogleAuthProvider,
   signInWithCredential,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
-import { auth, db } from '../../services/firebase';
+import { auth } from '../../services/firebase';
 import { useTheme } from '../../constants/ThemeContext';
 import { Colors } from '../../constants/colors';
 import { webScrollStyle, scrollContentStyle } from '../../constants/webStyles';
@@ -126,23 +126,9 @@ export default function LoginScreen({ navigation }) {
         e.code === 'auth/wrong-password' ||
         e.code === 'auth/user-not-found'
       ) {
-        try {
-          const usersRef = collection(db, 'users');
-          const q = query(
-            usersRef,
-            where('email', '==', email.trim().toLowerCase()),
-            limit(1)
-          );
-          const snap = await getDocs(q);
-
-          if (snap.empty) {
-            setErrors({ general: 'Email account does not exist. Please check your email or sign up.' });
-          } else {
-            setErrors({ general: 'Incorrect password. Please try again.' });
-          }
-        } catch (innerError) {
-          setErrors({ general: 'Sign in failed. Please check your details and try again.' });
-        }
+        // Same message whether the email or the password is wrong, so the
+        // form does not reveal which emails have accounts.
+        setErrors({ general: 'Email or password is incorrect.' });
       } else if (e.code === 'auth/invalid-email') {
         setErrors({ general: 'Please enter a valid email address.' });
       } else if (e.code === 'auth/too-many-requests') {
