@@ -632,5 +632,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
+  ...Platform.select({
+    web: { position: 'fixed' },
+  }),
   },
 });
