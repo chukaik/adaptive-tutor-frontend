@@ -1,3 +1,4 @@
+// ProfileScreen.js - Displays the student's profile information, including their name, email, profile picture, badges earned, and enrolled courses. Allows students to edit their profile details, change their profile picture, and view their earned badges. Also includes a sign-out button and handles loading states gracefully.
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -23,18 +24,16 @@ import { useTheme } from '../../constants/ThemeContext';
 import { Colors } from '../../constants/colors';
 import { initCourse } from '../../services/api';
 
-// ─── Cloudinary Config ───────────────────────────────────────────────────────
+// ─── Cloudinary Config ────────────────────────────────────────────────────────
 
-const CLOUDINARY_CLOUD_NAME = 'dick1btdu';
+const CLOUDINARY_CLOUD_NAME    = 'dick1btdu';
 const CLOUDINARY_UPLOAD_PRESET = 'adaptiveTutor';
 
 const uploadToCloudinary = async (imageUri) => {
   const uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
-
   if (Platform.OS === 'web') {
-    // On web: fetch the URI as blob then upload
     const response = await fetch(imageUri);
-    const blob = await response.blob();
+    const blob     = await response.blob();
     const formData = new FormData();
     formData.append('file', blob, 'profile.jpg');
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
@@ -43,7 +42,6 @@ const uploadToCloudinary = async (imageUri) => {
     if (data.error) throw new Error(data.error.message);
     return data.secure_url;
   } else {
-    // On native (Android/iOS): use URI directly
     const formData = new FormData();
     formData.append('file', { uri: imageUri, type: 'image/jpeg', name: 'profile.jpg' });
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
@@ -54,6 +52,33 @@ const uploadToCloudinary = async (imageUri) => {
   }
 };
 
+// ─── Web-safe alert helpers ───────────────────────────────────────────────────
+// React Native Web's Alert.alert() renders its modal behind an aria-hidden
+// overlay, which blocks pointer events on confirm/cancel buttons.
+// On web we use the browser's native window.confirm() / window.alert() instead.
+// On native (iOS/Android) we keep Alert.alert() unchanged.
+
+const webConfirm = (title, message, onConfirm, onCancel) => {
+  if (Platform.OS === 'web') {
+    const result = window.confirm(`${title}\n\n${message}`);
+    if (result) { onConfirm && onConfirm(); }
+    else        { onCancel  && onCancel();  }
+  } else {
+    Alert.alert(title, message, [
+      { text: 'Cancel', style: 'cancel', onPress: onCancel },
+      { text: 'Confirm', onPress: onConfirm },
+    ]);
+  }
+};
+
+const webAlert = (title, message) => {
+  if (Platform.OS === 'web') {
+    window.alert(`${title}\n\n${message}`);
+  } else {
+    Alert.alert(title, message, [{ text: 'OK' }]);
+  }
+};
+
 // ─── Available Courses ────────────────────────────────────────────────────────
 
 const AVAILABLE_COURSES = [
@@ -61,7 +86,7 @@ const AVAILABLE_COURSES = [
   { id: 'QhVX2kifeGLeN9Q1uJA7', code: 'CSC301', title: 'Data Structures' },
 ];
 
-// ─── Badge Data ──────────────────────────────────────────────────────────────
+// ─── Badge Data ───────────────────────────────────────────────────────────────
 
 const ALL_BADGES = [
   { id: 'first_step',        emoji: '🎯', name: 'First Step' },
@@ -85,7 +110,7 @@ const ALL_BADGES = [
   { id: 'hint_seeker',       emoji: '💡', name: 'Hint Seeker' },
 ];
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const formatJoinedDate = (timestamp) => {
   if (!timestamp) return null;
@@ -93,15 +118,13 @@ const formatJoinedDate = (timestamp) => {
   return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 };
 
-// ─── Sub-components ──────────────────────────────────────────────────────────
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
 const InfoRow = ({ icon, label, value, isLast, theme }) => (
-  <View
-    style={[
-      styles.infoRow,
-      !isLast && { borderBottomWidth: 1, borderBottomColor: theme.border },
-    ]}
-  >
+  <View style={[
+    styles.infoRow,
+    !isLast && { borderBottomWidth: 1, borderBottomColor: theme.border },
+  ]}>
     <View style={styles.infoRowLeft}>
       <Ionicons name={icon} size={18} color={Colors.primary} style={styles.infoIcon} />
       <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>{label}</Text>
@@ -113,12 +136,10 @@ const InfoRow = ({ icon, label, value, isLast, theme }) => (
 );
 
 const SettingRow = ({ icon, label, right, isLast, theme }) => (
-  <View
-    style={[
-      styles.settingRow,
-      !isLast && { borderBottomWidth: 1, borderBottomColor: theme.border },
-    ]}
-  >
+  <View style={[
+    styles.settingRow,
+    !isLast && { borderBottomWidth: 1, borderBottomColor: theme.border },
+  ]}>
     <View style={styles.settingRowLeft}>
       <Ionicons name={icon} size={20} color={theme.textSecondary} style={styles.settingIcon} />
       <Text style={[styles.settingLabel, { color: theme.text }]}>{label}</Text>
@@ -135,13 +156,12 @@ const computeEarnedBadgesSync = (
   fetchedSessions,
   hasChatHistory = false
 ) => {
-  const earned = new Set();
-  const streak = userDataObj?.login_streak || 0;
-
-  const passedSessions  = fetchedSessions.filter(s => s.passed === true);
-  const perfectSessions = fetchedSessions.filter(s => s.score === 100);
-  const speedSessions   = fetchedSessions.filter(s => s.passed && (s.time_taken_seconds || 999) < 180);
-  const failedTopicIds  = new Set(fetchedSessions.filter(s => !s.passed).map(s => s.topic_id));
+  const earned    = new Set();
+  const streak    = userDataObj?.login_streak || 0;
+  const passed    = fetchedSessions.filter(s => s.passed === true);
+  const perfect   = fetchedSessions.filter(s => s.score === 100);
+  const speed     = fetchedSessions.filter(s => s.passed && (s.time_taken_seconds || 999) < 180);
+  const failedIds = new Set(fetchedSessions.filter(s => !s.passed).map(s => s.topic_id));
 
   if (fetchedProgressDocs.some(p =>
     p.mastery_level === 'high' ||
@@ -149,33 +169,31 @@ const computeEarnedBadgesSync = (
     (p.attempts || 0) > 0
   )) earned.add('first_step');
 
-  if (fetchedSessions.length > 0)    earned.add('quiz_debut');
-  if (passedSessions.length > 0)     earned.add('first_win');
-  if (perfectSessions.length >= 1)   earned.add('perfect_score');
-  if (perfectSessions.length >= 3)   earned.add('perfect_score_x2');
-  if (speedSessions.length >= 1)     earned.add('speed_learner');
-  if (speedSessions.length >= 3)     earned.add('speed_pro');
+  if (fetchedSessions.length > 0) earned.add('quiz_debut');
+  if (passed.length > 0)          earned.add('first_win');
+  if (perfect.length >= 1)        earned.add('perfect_score');
+  if (perfect.length >= 3)        earned.add('perfect_score_x2');
+  if (speed.length >= 1)          earned.add('speed_learner');
+  if (speed.length >= 3)          earned.add('speed_pro');
 
-  const hardQuizPassed = fetchedSessions.some(
-    s => s.passed === true &&
-    (s.difficulty === 'hard' || s.difficulty === 'completed')
+  const hardPassed = fetchedSessions.some(
+    s => s.passed === true && (s.difficulty === 'hard' || s.difficulty === 'completed')
   );
-  if (hardQuizPassed) earned.add('topic_explorer');
+  if (hardPassed) earned.add('topic_explorer');
 
-  const masteredTopics  = fetchedProgressDocs.filter(p =>
-    p.mastery_level === 'high' || p.difficulty_unlocked === 'completed'
+  const mastered = fetchedProgressDocs.filter(
+    p => p.mastery_level === 'high' || p.difficulty_unlocked === 'completed'
   );
-  if (masteredTopics.length >= 1)    earned.add('topic_master');
+  if (mastered.length >= 1) earned.add('topic_master');
 
-  const cos201Progress = fetchedProgressDocs.filter(p => p.course_id === 'TEbLVrd24pWd27qXnbnC');
-  const csc301Progress = fetchedProgressDocs.filter(p => p.course_id === 'QhVX2kifeGLeN9Q1uJA7');
-  [cos201Progress, csc301Progress].forEach(courseProgress => {
-    if (courseProgress.length === 0) return;
-    const mastered = courseProgress.filter(p =>
-      p.mastery_level === 'high' || p.difficulty_unlocked === 'completed'
-    ).length;
-    if (mastered >= Math.ceil(courseProgress.length / 2)) earned.add('halfway_there');
-    if (mastered === courseProgress.length)               earned.add('course_champion');
+  [
+    fetchedProgressDocs.filter(p => p.course_id === 'TEbLVrd24pWd27qXnbnC'),
+    fetchedProgressDocs.filter(p => p.course_id === 'QhVX2kifeGLeN9Q1uJA7'),
+  ].forEach(cp => {
+    if (!cp.length) return;
+    const m = cp.filter(p => p.mastery_level === 'high' || p.difficulty_unlocked === 'completed').length;
+    if (m >= Math.ceil(cp.length / 2)) earned.add('halfway_there');
+    if (m === cp.length)               earned.add('course_champion');
   });
 
   if (streak >= 3)  earned.add('streak_starter');
@@ -183,8 +201,7 @@ const computeEarnedBadgesSync = (
   if (streak >= 14) earned.add('unstoppable');
   if (streak >= 30) earned.add('invincible');
 
-  const retriedAndPassed = fetchedSessions.some(s => s.passed && failedTopicIds.has(s.topic_id));
-  if (retriedAndPassed) earned.add('never_give_up');
+  if (fetchedSessions.some(s => s.passed && failedIds.has(s.topic_id))) earned.add('never_give_up');
 
   const topicScores = {};
   fetchedSessions.forEach(s => {
@@ -195,31 +212,29 @@ const computeEarnedBadgesSync = (
     if (scores.some(s => s < 80) && scores.some(s => s >= 80)) earned.add('comeback_kid');
   });
 
-  if (fetchedSessions.length > 0)    earned.add('hint_seeker');
-  if (hasChatHistory) earned.add('curious_mind');
+  if (fetchedSessions.length > 0) earned.add('hint_seeker');
+  if (hasChatHistory)              earned.add('curious_mind');
 
   return earned;
 };
 
-// ─── Main Screen ─────────────────────────────────────────────────────────────
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
   const { theme, isDark, toggleTheme } = useTheme();
 
-  const [userData,       setUserData]       = useState(null);
-  const [isEditing,      setIsEditing]      = useState(false);
-  const [editName,       setEditName]       = useState('');
-  const [editBio,        setEditBio]        = useState('');
-  const [editLinkedIn,   setEditLinkedIn]   = useState('');
-  const [earnedBadges,   setEarnedBadges]   = useState(new Set());
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [saving,         setSaving]         = useState(false);
-  const [loading,        setLoading]        = useState(true);
-  const [progressDocs,   setProgressDocs]   = useState([]);
-  const [quizSessions,   setQuizSessions]   = useState([]);
+  const [userData,          setUserData]          = useState(null);
+  const [isEditing,         setIsEditing]         = useState(false);
+  const [editName,          setEditName]          = useState('');
+  const [editBio,           setEditBio]           = useState('');
+  const [editLinkedIn,      setEditLinkedIn]      = useState('');
+  const [earnedBadges,      setEarnedBadges]      = useState(new Set());
+  const [uploadingPhoto,    setUploadingPhoto]    = useState(false);
+  const [saving,            setSaving]            = useState(false);
+  const [loading,           setLoading]           = useState(true);
   const [enrolledCourseIds, setEnrolledCourseIds] = useState([]);
 
-  // ── Data Fetching ──────────────────────────────────────────────────────────
+  // ── Data Fetching ─────────────────────────────────────────────────────────
 
   useFocusEffect(
     useCallback(() => {
@@ -231,60 +246,35 @@ export default function ProfileScreen() {
           if (!currentUser) return;
           const userId = currentUser.uid;
 
-          const [userSnap, progressSnap, sessionsSnap] =
-            await Promise.all([
-              getDoc(doc(db, 'users', userId)),
-              getDocs(query(
-                collection(db, 'student_progress'),
-                where('user_id', '==', userId)
-              )),
-              getDocs(query(
-                collection(db, 'quiz_sessions'),
-                where('user_id', '==', userId)
-              )),
-            ]);
+          const [userSnap, progressSnap, sessionsSnap] = await Promise.all([
+            getDoc(doc(db, 'users', userId)),
+            getDocs(query(collection(db, 'student_progress'), where('user_id', '==', userId))),
+            getDocs(query(collection(db, 'quiz_sessions'),    where('user_id', '==', userId))),
+          ]);
 
           if (!active) return;
 
-          const freshUserData = userSnap.exists()
-            ? userSnap.data() : null;
-          const freshProgressDocs = progressSnap.docs
-            .map(d => d.data());
-          const freshSessions = sessionsSnap.docs
-            .map(d => d.data());
+          const freshUserData     = userSnap.exists() ? userSnap.data() : null;
+          const freshProgressDocs = progressSnap.docs.map(d => d.data());
+          const freshSessions     = sessionsSnap.docs.map(d => d.data());
 
           let hasChatHistory = false;
           try {
-            const sessionsRef = collection(
-              db, 'chat_history', userId, 'sessions'
-            );
             const chatSnap = await getDocs(
-              query(sessionsRef, limit(1))
+              query(collection(db, 'chat_history', userId, 'sessions'), limit(1))
             );
             hasChatHistory = !chatSnap.empty;
-          } catch (e) {
-            hasChatHistory = false;
-          }
+          } catch (e) { hasChatHistory = false; }
 
           if (freshUserData) setUserData(freshUserData);
           setEnrolledCourseIds(freshUserData?.enrolled_courses || []);
-          setProgressDocs(freshProgressDocs);
-          setQuizSessions(freshSessions);
-
-          const earned = computeEarnedBadgesSync(
-            freshUserData,
-            freshProgressDocs,
-            freshSessions,
-            hasChatHistory
-          );
-          setEarnedBadges(earned);
+          setEarnedBadges(computeEarnedBadgesSync(freshUserData, freshProgressDocs, freshSessions, hasChatHistory));
 
           if (!isEditing) {
             setEditName(freshUserData?.name || '');
             setEditBio(freshUserData?.bio || '');
             setEditLinkedIn(freshUserData?.linkedin_url || '');
           }
-
         } catch (e) {
           console.log('Profile refresh error:', e);
         } finally {
@@ -297,7 +287,7 @@ export default function ProfileScreen() {
     }, [])
   );
 
-  // ── Handlers ───────────────────────────────────────────────────────────────
+  // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handlePickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -306,18 +296,16 @@ export default function ProfileScreen() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes:    ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
+      aspect:        [1, 1],
+      quality:       0.7,
     });
     if (!result.canceled && result.assets[0]) {
       setUploadingPhoto(true);
       try {
         const url = await uploadToCloudinary(result.assets[0].uri);
-        await updateDoc(doc(db, 'users', auth.currentUser.uid), {
-          profile_picture_url: url,
-        });
+        await updateDoc(doc(db, 'users', auth.currentUser.uid), { profile_picture_url: url });
         await updateProfile(auth.currentUser, { photoURL: url });
         setUserData(prev => ({ ...prev, profile_picture_url: url }));
         Alert.alert('Success', 'Profile picture updated!');
@@ -331,7 +319,7 @@ export default function ProfileScreen() {
 
   const handleSave = async () => {
     if (!editName.trim()) {
-      Alert.alert('Error', 'Name cannot be empty.');
+      webAlert('Error', 'Name cannot be empty.');
       return;
     }
     setSaving(true);
@@ -351,9 +339,9 @@ export default function ProfileScreen() {
         linkedin_url: editLinkedIn.trim(),
       }));
       setIsEditing(false);
-      Alert.alert('Saved', 'Your profile has been updated.');
+      webAlert('Saved', 'Your profile has been updated.');
     } catch (e) {
-      Alert.alert('Error', 'Failed to save profile. Please try again.');
+      webAlert('Error', 'Failed to save profile. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -363,33 +351,18 @@ export default function ProfileScreen() {
     try {
       const userId = auth.currentUser?.uid;
       if (!userId) return;
-
-      const newEnrolled = [
-        ...enrolledCourseIds,
-        courseId,
-      ];
-
+      const newEnrolled = [...enrolledCourseIds, courseId];
       await updateDoc(doc(db, 'users', userId), {
         enrolled_courses: newEnrolled,
-        updated_at: serverTimestamp(),
+        updated_at:       serverTimestamp(),
       });
-
       setEnrolledCourseIds(newEnrolled);
-
       try {
         await initCourse(userId, courseId);
-      } catch (initError) {
-        console.log('Course init error:', initError);
-      }
-
-      Alert.alert(
-        'Course Added',
-        'You have been enrolled. Visit the ' +
-        'Learn tab to start your first lesson.'
-      );
-
+      } catch (e) { console.log('Course init error:', e); }
+      webAlert('Course Added', 'You have been enrolled. Visit the Learn tab to start your first lesson.');
     } catch (e) {
-      Alert.alert('Error', 'Failed to add course.');
+      webAlert('Error', 'Failed to add course.');
     }
   };
 
@@ -400,28 +373,28 @@ export default function ProfileScreen() {
     setIsEditing(false);
   };
 
+  // ─── handleSignOut ────────────────────────────────────────────────────────
+  // Uses webConfirm instead of Alert.alert so the confirmation dialog works
+  // on web. The aria-hidden overlay from React Native Web's Alert blocks
+  // button pointer events — window.confirm() is unaffected by this.
+  // Sign-out logic is completely unchanged — only the dialog mechanism swapped.
+
   const handleSignOut = () => {
-    Alert.alert(
+    webConfirm(
       'Sign Out',
       'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await signOut(auth);
-            } catch (e) {
-              Alert.alert('Error', 'Failed to sign out.');
-            }
-          },
-        },
-      ]
+      async () => {
+        try {
+          await signOut(auth);
+        } catch (e) {
+          webAlert('Error', 'Failed to sign out.');
+        }
+      },
+      null  // cancel — do nothing
     );
   };
 
-  // ── Loading State ──────────────────────────────────────────────────────────
+  // ── Loading ────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -431,18 +404,35 @@ export default function ProfileScreen() {
     );
   }
 
-  // ── Derived Values ─────────────────────────────────────────────────────────
+  const joinedDateStr = userData?.joined_date ? formatJoinedDate(userData.joined_date) : null;
+  const nameInitial   = (userData?.name || auth.currentUser?.displayName || '?')[0].toUpperCase();
+  const profilePicUrl = userData?.profile_picture_url;
 
-  const joinedDateStr  = userData?.joined_date ? formatJoinedDate(userData.joined_date) : null;
-  const nameInitial    = (userData?.name || auth.currentUser?.displayName || '?')[0].toUpperCase();
-  const profilePicUrl  = userData?.profile_picture_url;
+  // ─── Web Layout Strategy ───────────────────────────────────────────────────
+  // Root View: height:100vh + overflow:hidden — pins the screen to the viewport.
+  // Header: flexShrink:0 so it never compresses.
+  // ScrollView: flex:1 + overflowY:auto — fills all remaining space below the
+  // header and scrolls within it. Everything including Sign Out is reachable.
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  const rootStyle = Platform.OS === 'web'
+    ? [styles.screen, {
+        backgroundColor: theme.background,
+        height: '100vh',
+        maxHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }]
+    : [styles.screen, { backgroundColor: theme.background }];
+
+  const scrollStyle = Platform.OS === 'web'
+    ? { flex: 1, overflowY: 'auto' }
+    : { flex: 1 };
 
   return (
-    <View style={[styles.screen, { backgroundColor: theme.background }]}>
+    <View style={rootStyle}>
 
-      {/* ── Header ── */}
+      {/* Header — natural height, never scrolls */}
       <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Profile</Text>
         <View style={styles.headerActions}>
@@ -466,14 +456,14 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      {/* ScrollView fills remaining space, scrolls within it */}
       <ScrollView
-        style={{ flex: 1 }}
+        style={scrollStyle}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-
-        {/* ── Profile Hero ── */}
+        {/* Profile Hero */}
         <View style={[styles.heroSection, { backgroundColor: theme.surface }]}>
           <TouchableOpacity onPress={handlePickImage} activeOpacity={0.85} style={styles.avatarWrapper}>
             {profilePicUrl ? (
@@ -492,7 +482,6 @@ export default function ProfileScreen() {
               <Ionicons name="camera" size={12} color="#fff" />
             </View>
           </TouchableOpacity>
-
           <Text style={[styles.heroName, { color: theme.text }]}>
             {userData?.name || auth.currentUser?.displayName || 'Student'}
           </Text>
@@ -506,30 +495,21 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {/* ── Edit Mode Section ── */}
+        {/* Edit Mode */}
         {isEditing && (
           <View style={[styles.card, { backgroundColor: theme.surface, marginTop: 16 }]}>
             <Text style={[styles.sectionLabel, { color: Colors.primary }]}>EDIT YOUR PROFILE</Text>
-
             <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>Full Name *</Text>
             <TextInput
-              style={[
-                styles.input,
-                { color: theme.text, borderColor: theme.border, backgroundColor: theme.background },
-              ]}
+              style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.background }]}
               value={editName}
               onChangeText={setEditName}
               placeholder="Your full name"
               placeholderTextColor={theme.textSecondary}
             />
-
             <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>Bio</Text>
             <TextInput
-              style={[
-                styles.input,
-                styles.inputMultiline,
-                { color: theme.text, borderColor: theme.border, backgroundColor: theme.background },
-              ]}
+              style={[styles.input, styles.inputMultiline, { color: theme.text, borderColor: theme.border, backgroundColor: theme.background }]}
               value={editBio}
               onChangeText={setEditBio}
               placeholder="Tell us a bit about yourself..."
@@ -537,13 +517,9 @@ export default function ProfileScreen() {
               multiline
               textAlignVertical="top"
             />
-
             <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>LinkedIn URL</Text>
             <TextInput
-              style={[
-                styles.input,
-                { color: theme.text, borderColor: theme.border, backgroundColor: theme.background },
-              ]}
+              style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.background }]}
               value={editLinkedIn}
               onChangeText={setEditLinkedIn}
               placeholder="https://linkedin.com/in/yourname"
@@ -554,7 +530,7 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {/* ── Badges Section ── */}
+        {/* Badges */}
         <View style={styles.badgesSection}>
           <View style={styles.badgesHeader}>
             <Text style={[styles.badgesTitle, { color: theme.text }]}>Badges Earned</Text>
@@ -562,21 +538,13 @@ export default function ProfileScreen() {
               <Text style={styles.badgeCountText}>{earnedBadges.size}</Text>
             </View>
           </View>
-
           {earnedBadges.size > 0 ? (
             <>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.badgesScroll}
-              >
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgesScroll}>
                 {ALL_BADGES.filter(b => earnedBadges.has(b.id)).map(badge => (
                   <View key={badge.id} style={[styles.badgeCard, { backgroundColor: theme.surface }]}>
                     <Text style={styles.badgeEmoji}>{badge.emoji}</Text>
-                    <Text
-                      style={[styles.badgeName, { color: Colors.primary }]}
-                      numberOfLines={1}
-                    >
+                    <Text style={[styles.badgeName, { color: Colors.primary }]} numberOfLines={1}>
                       {badge.name}
                     </Text>
                   </View>
@@ -593,45 +561,18 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {/* ── Profile Info Section ── */}
+        {/* Your Information */}
         <View style={[styles.card, { backgroundColor: theme.surface, marginTop: 16 }]}>
           <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>YOUR INFORMATION</Text>
-          <InfoRow
-            icon="school-outline"
-            label="Faculty"
-            value={userData?.faculty}
-            isLast={false}
-            theme={theme}
-          />
-          <InfoRow
-            icon="book-outline"
-            label="Course of Study"
-            value={userData?.course_of_study}
-            isLast={false}
-            theme={theme}
-          />
-          <InfoRow
-            icon="calendar-outline"
-            label="Year of Study"
-            value={userData?.year_of_study ? `Year ${userData.year_of_study}` : null}
-            isLast={false}
-            theme={theme}
-          />
-          <InfoRow
-            icon="mail-outline"
-            label="Email"
-            value={auth.currentUser?.email}
-            isLast={true}
-            theme={theme}
-          />
+          <InfoRow icon="school-outline"    label="Faculty"         value={userData?.faculty}                                                 isLast={false} theme={theme} />
+          <InfoRow icon="book-outline"      label="Course of Study" value={userData?.course_of_study}                                         isLast={false} theme={theme} />
+          <InfoRow icon="calendar-outline"  label="Year of Study"   value={userData?.year_of_study ? `Year ${userData.year_of_study}` : null} isLast={false} theme={theme} />
+          <InfoRow icon="mail-outline"      label="Email"           value={auth.currentUser?.email}                                           isLast={true}  theme={theme} />
         </View>
 
-        {/* ── Enrolled Courses Section ── */}
+        {/* Enrolled Courses */}
         <View style={[styles.card, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-            ENROLLED COURSES
-          </Text>
-
+          <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>ENROLLED COURSES</Text>
           {AVAILABLE_COURSES.map((course, index) => {
             const isEnrolled = enrolledCourseIds.includes(course.id);
             return (
@@ -639,49 +580,26 @@ export default function ProfileScreen() {
                 key={course.id}
                 style={[
                   styles.infoRow,
-                  index < AVAILABLE_COURSES.length - 1 && {
-                    borderBottomWidth: 1,
-                    borderBottomColor: theme.border,
-                  },
+                  index < AVAILABLE_COURSES.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.border },
                 ]}
               >
                 <View style={styles.infoRowLeft}>
-                  <View style={{
-                    backgroundColor: isEnrolled ? Colors.primary : theme.border,
-                    paddingHorizontal: 8,
-                    paddingVertical: 3,
-                    borderRadius: 6,
-                    marginRight: 10,
-                  }}>
-                    <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>
-                      {course.code}
-                    </Text>
+                  <View style={{ backgroundColor: isEnrolled ? Colors.primary : theme.border, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, marginRight: 10 }}>
+                    <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{course.code}</Text>
                   </View>
-                  <Text style={[styles.infoLabel, { color: theme.text }]} numberOfLines={1}>
-                    {course.title}
-                  </Text>
+                  <Text style={[styles.infoLabel, { color: theme.text }]} numberOfLines={1}>{course.title}</Text>
                 </View>
-
                 {isEnrolled ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
-                    <Text style={{ color: Colors.success, fontSize: 12, fontWeight: '600' }}>
-                      Enrolled
-                    </Text>
+                    <Text style={{ color: Colors.success, fontSize: 12, fontWeight: '600' }}>Enrolled</Text>
                   </View>
                 ) : (
                   <TouchableOpacity
                     onPress={() => handleAddCourse(course.id)}
-                    style={{
-                      backgroundColor: Colors.primary,
-                      paddingHorizontal: 12,
-                      paddingVertical: 5,
-                      borderRadius: 8,
-                    }}
+                    style={{ backgroundColor: Colors.primary, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 8 }}
                   >
-                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
-                      + Add
-                    </Text>
+                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>+ Add</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -689,35 +607,25 @@ export default function ProfileScreen() {
           })}
         </View>
 
-        {/* ── About Section ── */}
+        {/* About */}
         <View style={[styles.card, { backgroundColor: theme.surface }]}>
           <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>ABOUT</Text>
-
           {userData?.bio ? (
             <Text style={[styles.bioText, { color: theme.text }]}>{userData.bio}</Text>
           ) : (
             <Text style={[styles.bioEmpty, { color: theme.textSecondary }]}>No bio added yet.</Text>
           )}
-
           {!!userData?.linkedin_url && (
-            <TouchableOpacity
-              style={styles.linkedinRow}
-              onPress={() => Linking.openURL(userData.linkedin_url)}
-              activeOpacity={0.7}
-            >
+            <TouchableOpacity style={styles.linkedinRow} onPress={() => Linking.openURL(userData.linkedin_url)} activeOpacity={0.7}>
               <Ionicons name="globe-outline" size={16} color={Colors.primary} />
-              <Text
-                style={{ color: Colors.primary, fontSize: 13 }}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
+              <Text style={{ color: Colors.primary, fontSize: 13 }} numberOfLines={1} ellipsizeMode="tail">
                 {userData.linkedin_url}
               </Text>
             </TouchableOpacity>
           )}
         </View>
 
-        {/* ── Settings Section ── */}
+        {/* Settings */}
         <Text style={[styles.sectionLabelStandalone, { color: theme.textSecondary }]}>SETTINGS</Text>
         <View style={[styles.card, styles.cardNoPadding, { backgroundColor: theme.surface }]}>
           <SettingRow
@@ -739,26 +647,27 @@ export default function ProfileScreen() {
             label="App Version"
             isLast={true}
             theme={theme}
-            right={
-              <Text style={[styles.settingValue, { color: theme.textSecondary }]}>1.0.0</Text>
-            }
+            right={<Text style={[styles.settingValue, { color: theme.textSecondary }]}>1.0.0</Text>}
           />
         </View>
 
-        {/* ── Sign Out Button ── */}
-        <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut} activeOpacity={0.85}>
+        {/* Sign Out */}
+        <TouchableOpacity
+          style={styles.signOutBtn}
+          onPress={handleSignOut}
+          activeOpacity={0.85}
+        >
           <Ionicons name="log-out-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
           <Text style={styles.signOutText}>Sign Out</Text>
         </TouchableOpacity>
 
-        {/* ── Bottom Spacing ── */}
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   screen: {
@@ -769,8 +678,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
-  // ── Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -779,6 +686,10 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
+    zIndex: 10,
+    ...Platform.select({
+      web: { flexShrink: 0 },
+    }),
   },
   headerTitle: {
     fontSize: 22,
@@ -797,13 +708,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-
-  // ── Scroll
   scrollContent: {
     paddingBottom: 8,
+    flexGrow: 1,
   },
-
-  // ── Hero
   heroSection: {
     alignItems: 'center',
     paddingVertical: 28,
@@ -864,8 +772,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
-
-  // ── Card
   card: {
     borderRadius: 14,
     padding: 16,
@@ -876,8 +782,6 @@ const styles = StyleSheet.create({
     padding: 0,
     overflow: 'hidden',
   },
-
-  // ── Section labels
   sectionLabel: {
     fontSize: 11,
     fontWeight: '700',
@@ -892,8 +796,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 4,
   },
-
-  // ── Edit fields
   fieldLabel: {
     fontSize: 13,
     fontWeight: '600',
@@ -911,8 +813,6 @@ const styles = StyleSheet.create({
     minHeight: 80,
     paddingTop: 10,
   },
-
-  // ── Info rows
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -938,8 +838,6 @@ const styles = StyleSheet.create({
     maxWidth: '50%',
     textAlign: 'right',
   },
-
-  // ── About
   bioText: {
     fontSize: 14,
     lineHeight: 21,
@@ -956,12 +854,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     gap: 6,
   },
-  linkedinText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
-  // ── Badges
   badgesSection: {
     marginHorizontal: 16,
     marginBottom: 12,
@@ -1026,8 +918,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: 12,
   },
-
-  // ── Settings
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1050,8 +940,6 @@ const styles = StyleSheet.create({
   settingValue: {
     fontSize: 14,
   },
-
-  // ── Sign Out
   signOutBtn: {
     flexDirection: 'row',
     alignItems: 'center',

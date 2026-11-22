@@ -19,6 +19,10 @@ export const webFlatListStyle =
       }
     : { flex: 1 };
 
+export const webRootStyle = Platform.OS === 'web'
+  ? { minHeight: '100vh', display: 'flex', flexDirection: 'column' }
+  : {};
+
 
 
     // import { Platform } from 'react-native';
