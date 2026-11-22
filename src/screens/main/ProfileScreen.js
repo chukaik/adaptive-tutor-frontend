@@ -1,5 +1,5 @@
 // ProfileScreen.js - Displays the student's profile information, including their name, email, profile picture, badges earned, and enrolled courses. Allows students to edit their profile details, change their profile picture, and view their earned badges. Also includes a sign-out button and handles loading states gracefully.
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -279,7 +279,7 @@ export default function ProfileScreen() {
               query(collection(db, 'chat_history', userId, 'sessions'), limit(1))
             );
             hasChatHistory = !chatSnap.empty;
-          } catch (e) { hasChatHistory = false; }
+          } catch { hasChatHistory = false; }
 
           if (freshUserData) setUserData(freshUserData);
           setEnrolledCourseIds(freshUserData?.enrolled_courses || []);
@@ -334,7 +334,7 @@ export default function ProfileScreen() {
         await updateProfile(auth.currentUser, { photoURL: url });
         setUserData(prev => ({ ...prev, profile_picture_url: url }));
         Alert.alert('Success', 'Profile picture updated!');
-      } catch (e) {
+      } catch {
         Alert.alert('Error', 'Failed to upload photo. Please try again.');
       } finally {
         setUploadingPhoto(false);
@@ -365,7 +365,7 @@ export default function ProfileScreen() {
       }));
       setIsEditing(false);
       webAlert('Saved', 'Your profile has been updated.');
-    } catch (e) {
+    } catch {
       webAlert('Error', 'Failed to save profile. Please try again.');
     } finally {
       setSaving(false);
@@ -386,7 +386,7 @@ export default function ProfileScreen() {
         await initCourse(userId, courseId);
       } catch (e) { console.log('Course init error:', e); }
       webAlert('Course Added', 'You have been enrolled. Visit the Learn tab to start your first lesson.');
-    } catch (e) {
+    } catch {
       webAlert('Error', 'Failed to add course.');
     }
   };
@@ -411,7 +411,7 @@ export default function ProfileScreen() {
       async () => {
         try {
           await signOut(auth);
-        } catch (e) {
+        } catch {
           webAlert('Error', 'Failed to sign out.');
         }
       },

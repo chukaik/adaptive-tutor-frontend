@@ -5,12 +5,7 @@ import {
   StyleSheet, ActivityIndicator, KeyboardAvoidingView,
   Platform, ScrollView,
 } from 'react-native';
-import {
-  signInWithEmailAndPassword,
-  GoogleAuthProvider,
-  signInWithCredential,
-} from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { auth } from '../../services/firebase';
@@ -99,7 +94,7 @@ export default function LoginScreen({ navigation }) {
       } else {
         await signInWithGoogle(null, res);
       }
-    } catch (error) {
+    } catch {
       setErrors({ general: 'Google sign-in failed. Please try again.' });
     } finally {
       setGLoading(false);
@@ -250,7 +245,7 @@ export default function LoginScreen({ navigation }) {
           </TouchableOpacity>
 
           <View style={styles.signupRow}>
-            <Text style={styles.signupText}>Don't have an account? </Text>
+            <Text style={styles.signupText}>Don&apos;t have an account? </Text>
             <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
               <Text style={styles.signupLink}>Sign Up</Text>
             </TouchableOpacity>

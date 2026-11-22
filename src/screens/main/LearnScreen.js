@@ -74,10 +74,6 @@ const PLACEHOLDER_TOPICS = {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-function isCourseCompleted(topics = []) {
-  return topics.length > 0 && topics.every(t => t.mastery_level === 'high');
-}
-
 function masteryBadgeStyle(masteryLevel, isUnlocked) {
   if (!isUnlocked) return { label: 'Locked', bg: Colors.mastery.locked, text: '#fff' };
   if (masteryLevel === 'high') return { label: 'Mastered', bg: Colors.success, text: '#fff' };

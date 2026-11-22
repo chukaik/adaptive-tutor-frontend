@@ -8,10 +8,8 @@ import {
 import {
   createUserWithEmailAndPassword,
   updateProfile,
-  GoogleAuthProvider,
-  signInWithCredential,
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { auth, db } from '../../services/firebase';
@@ -102,7 +100,7 @@ export default function SignUpScreen({ navigation }) {
       } else {
         await signInWithGoogle(null, res);
       }
-    } catch (error) {
+    } catch {
       setErrors({ general: 'Google sign-in failed. Please try again.' });
     } finally {
       setGLoading(false);

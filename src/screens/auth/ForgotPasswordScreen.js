@@ -59,7 +59,7 @@ export default function ForgotPasswordScreen({ navigation }) {
             <>
               <Text style={styles.title}>Reset Password</Text>
               <Text style={styles.subtitle}>
-                Enter your email address and we'll send you a link to reset your password.
+                Enter your email address and we&apos;ll send you a link to reset your password.
               </Text>
 
               <Text style={styles.label}>Email Address</Text>
@@ -90,7 +90,7 @@ export default function ForgotPasswordScreen({ navigation }) {
               <Text style={styles.successIcon}>✅</Text>
               <Text style={styles.title}>Email Sent!</Text>
               <Text style={styles.subtitle}>
-                We've sent a password reset link to {email}. Check your inbox and follow the instructions.
+                We&apos;ve sent a password reset link to {email}. Check your inbox and follow the instructions.
               </Text>
             </>
           )}

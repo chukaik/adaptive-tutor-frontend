@@ -49,7 +49,7 @@ function EmptyState({ theme, onSuggestion }) {
   return (
     <View style={styles.emptyContainer}>
       <Text style={styles.emptyEmoji}>🤖</Text>
-      <Text style={[styles.emptyTitle, { color: Colors.primary }]}>Hey, I'm Chukky!</Text>
+      <Text style={[styles.emptyTitle, { color: Colors.primary }]}>Hey, I&apos;m Chukky!</Text>
       <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
         Your AI learning companion for AdaptiveTutor.
       </Text>
@@ -208,7 +208,7 @@ export default function ChatScreen({ navigation, route }) {
           timestamp: doc.data().timestamp,
         }));
         setMessages(loaded);
-      } catch (err) {
+      } catch {
         // No history yet — start fresh
       } finally {
         setInitialLoading(false);
@@ -243,7 +243,7 @@ export default function ChatScreen({ navigation, route }) {
         message_count: 0,
       }, ...prev]);
       setShowSessionsModal(false);
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'Failed to create new session.');
     } finally {
       setCreatingSession(false);
@@ -334,7 +334,7 @@ export default function ChatScreen({ navigation, route }) {
       } catch {
         // non-critical
       }
-    } catch (err) {
+    } catch {
       const errorMsg = {
         id: `error_${Date.now()}`,
         role: 'assistant',

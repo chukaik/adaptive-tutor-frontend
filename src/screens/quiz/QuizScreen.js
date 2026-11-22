@@ -7,7 +7,6 @@ import {
   ScrollView,
   TextInput,
   ActivityIndicator,
-  Keyboard,
   StyleSheet,
   Platform,
   Alert,
@@ -71,27 +70,12 @@ export default function QuizScreen({ route, navigation }) {
   const [elapsedSeconds,  setElapsedSeconds]  = useState(0);
   const [timerActive,     setTimerActive]     = useState(false);
   const [error,           setError]           = useState(null);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   const timerRef = useRef(null);
 
   useEffect(() => {
     loadQuiz();
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, []);
-
-  // Only track keyboard on native — not needed on web
-  useEffect(() => {
-    if (Platform.OS === 'web') return;
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => setKeyboardVisible(true)
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardVisible(false)
-    );
-    return () => { showSub.remove(); hideSub.remove(); };
   }, []);
 
   useEffect(() => {
@@ -112,7 +96,7 @@ export default function QuizScreen({ route, navigation }) {
       setSessionId(data.session_id);
       setQuestions(data.questions);
       setTimerActive(true);
-    } catch (e) {
+    } catch {
       setError('Failed to load quiz. Please try again.');
     } finally {
       setLoading(false);
@@ -131,7 +115,7 @@ export default function QuizScreen({ route, navigation }) {
       setHints(prev => ({ ...prev, [questionId]: result.hint }));
       setHintsExpanded(prev => ({ ...prev, [questionId]: true }));
       setHintsUsed(prev => prev + 1);
-    } catch (e) {
+    } catch {
       webAlert('Error', 'Could not load hint. Please try again.');
     } finally {
       setLoadingHint(prev => ({ ...prev, [questionId]: false }));
@@ -172,7 +156,7 @@ export default function QuizScreen({ route, navigation }) {
         navigation.navigate('QuizResultScreen', {
           result, topicId, topicTitle, courseId, difficulty,
         });
-      } catch (e) {
+      } catch {
         webAlert('Error', 'Failed to submit quiz. Please try again.');
         setTimerActive(true);
       } finally {

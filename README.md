@@ -430,13 +430,15 @@ npm run format:check   # report files Prettier would change
 npm run format         # rewrite files with Prettier
 ```
 
-The existing code has **not** been reformatted yet. When this was set up, on the
-committed sources:
+Current state:
 
-- `expo lint` reported **51 problems: 6 errors and 45 warnings**. The errors are all
-  `react/no-unescaped-entities` (apostrophes in JSX text). The warnings are 39
-  `no-unused-vars` and 6 `react-hooks/exhaustive-deps`.
-- Prettier would reformat **24 of 27** JavaScript files.
+- `expo lint` reports **0 errors and 6 warnings**. All six are
+  `react-hooks/exhaustive-deps` (a `useEffect` or `useCallback` that does not list a
+  function or value it uses). They are left as they are on purpose: adding the missing
+  dependency without also memoising the function can make the effect run on every render
+  and loop. Each needs to be looked at individually.
+- The existing code has **not** been reformatted with Prettier yet. When Prettier was set
+  up it would have reformatted 24 of 27 JavaScript files.
 
 ---
 
