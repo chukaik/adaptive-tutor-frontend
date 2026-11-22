@@ -371,7 +371,7 @@ existing builds with the same app version using `eas update`.
 | --- | --- |
 | [adaptive-tutor-backend](https://github.com/chukaik/adaptive-tutor-backend), deployed at `https://adaptive-tutor-api.onrender.com` | Onboarding, lessons, remedial lessons, quizzes, hints, grading and next action, personalised quizzes, chat, learning state, progress, streaks |
 | Firebase Authentication | Email/password and Google sign-in |
-| Cloud Firestore | User profiles, progress, quiz sessions, topics, chat history (read and written directly by the client) |
+| Cloud Firestore | User profiles, progress, quiz sessions, topics, chat history (read directly by the client; see [Firestore security rules](#firestore-security-rules)) |
 | Cloudinary | Profile photo upload (unsigned preset) |
 
 Backend endpoints called by the client (from `src/services/api.js`):
@@ -392,6 +392,28 @@ GET  /chat/history/{uid}             GET  /health
 
 How lessons and quizzes are generated, and how the next action is decided, is documented
 in the backend repository. <!-- TODO(Chukwugozim): link the specific backend README section once it exists. -->
+
+### Firestore security rules
+
+The client reads Firestore directly, so access is enforced by the rules in
+[`firestore.rules`](firestore.rules). The same rules are published to the Firebase
+project; the file here is a copy for review, and nothing deploys it automatically.
+
+| Collection | Signed-in client may |
+| --- | --- |
+| `users/{uid}` | Read and write only its own document |
+| `courses`, `topics`, `badges` | Read |
+| `student_progress`, `quiz_sessions`, `user_lessons` | Read only its own records (`user_id` equal to its uid); no writes |
+| `chat_history/{uid}` and its `sessions`, `messages` subcollections | Read and write only its own |
+| `question_bank`, `user_badges` | Nothing |
+
+Anything not listed is denied. Signed-out users can read nothing. The backend writes
+progress, quiz sessions and lesson records with the Firebase Admin SDK, which is not
+bound by these rules. Questions and their answers live in `question_bank`, which the
+client cannot read.
+
+Because queries must match the rules, queries on the per-student collections must filter
+on `where('user_id', '==', uid)`.
 
 ---
 
@@ -437,9 +459,9 @@ committed sources:
   implemented separately in `ProfileScreen` and `ProgressScreen`.
 - **Badges and some statistics are computed on the client** from Firestore reads, so they
   are not authoritative and could be changed by a modified client.
-- **Security depends on Firestore rules that are not in this repository.** The client
-  reads and writes Firestore directly.
-  <!-- TODO(Chukwugozim): say where the Firestore security rules live, or add them. -->
+- **A user can change any field of their own profile document.** The
+  [Firestore rules](#firestore-security-rules) restrict each user to their own
+  `users/{uid}` document but do not validate which fields are written.
 - **Auth persistence on native is not set up.** `firebase/auth` is initialised with
   `getAuth()` and AsyncStorage is installed but not connected. Users may have to sign in
   again after restarting the app on Android/iOS.

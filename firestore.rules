@@ -1,0 +1,58 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    // For records that carry the owner's uid in a user_id field
+    function isOwnRecord() {
+      return signedIn() && resource.data.user_id == request.auth.uid;
+    }
+
+    // Profile: each user reads and writes only their own document
+    match /users/{userId} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+    }
+
+    // Course content: read-only for signed-in users
+    match /courses/{courseId} { allow read: if signedIn(); }
+    match /topics/{topicId}   { allow read: if signedIn(); }
+    match /badges/{badgeId}   { allow read: if signedIn(); }
+
+    // Questions and answers: backend only (the backend's Admin SDK is not bound by these rules)
+    match /question_bank/{questionId} { allow read, write: if false; }
+
+    // Student records: written only by the backend; each student reads their own
+    match /student_progress/{docId} {
+      allow read: if isOwnRecord();
+      allow write: if false;
+    }
+    match /quiz_sessions/{sessionId} {
+      allow read: if isOwnRecord();
+      allow write: if false;
+    }
+    match /user_lessons/{docId} {
+      allow read: if isOwnRecord();
+      allow write: if false;
+    }
+
+    // Not used by the current app or backend
+    match /user_badges/{docId} { allow read, write: if false; }
+
+    // Chat history: own only
+    match /chat_history/{userId} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+
+      match /sessions/{sessionId} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+        match /messages/{messageId} {
+          allow read, write: if signedIn() && request.auth.uid == userId;
+        }
+      }
+      match /messages/{messageId} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+    }
+  }
+}
