@@ -336,11 +336,6 @@ The app calls the deployed backend, so you need an internet connection. When a u
 signs in, the app sends a request to `/health` to wake the backend. The first lesson or
 quiz after a period of inactivity can still be slow.
 
-**Google sign-in by platform.** On web it uses the Firebase popup, and it works. On
-Android it uses `expo-auth-session` with the Android client ID, but it does not currently
-work there. No iOS client ID is configured and it has not been tested on iOS. Use
-email/password sign-in on Android; it works on every platform.
-
 ---
 
 ## Building with EAS
@@ -479,8 +474,8 @@ Current state:
   fix this. The web app is not affected.
 - **Dark mode is not saved.** The theme toggle is held in React state only. A
   `theme_mode` field is written to the user document but never read.
-- **Google sign-in works only on the web.** It does not currently work on Android, and
-  no iOS client ID is configured.
+- **Google sign-in works only on the web.** It does not currently work on Android (sign
+  in with email and password there), and no iOS client ID is configured.
 - **Not tested on iOS.** An iOS build exists but has never been run.
 - **No accessibility work yet.** No `accessibilityLabel`s are set, and screen-reader use has
   not been tested.
